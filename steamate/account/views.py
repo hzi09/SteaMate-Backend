@@ -19,7 +19,6 @@ class Signup(APIView):
         
 class MyPage(APIView):
     def get_permissions(self):
-        """🔥 요청 방식(GET, PUT, DELETE)에 따라 다른 권한을 적용"""
         if self.request.method == "GET":
             return [permissions.AllowAny()]
         return [permissions.IsAuthenticated()]
@@ -53,4 +52,4 @@ class MyPage(APIView):
     def delete(self, request, pk):
         user = self.get_user(request.user.pk)
         user.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        return Response({"message":"withdrawal"},status=status.HTTP_204_NO_CONTENT)
