@@ -3,8 +3,12 @@ from . import views
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 urlpatterns = [
-    path('signup/', views.Signup.as_view()),
+    path('signup/', views.SignupAPIView.as_view()),
     path("login/", TokenObtainPairView.as_view()),
     path("refresh/", TokenRefreshView.as_view()),
-    path('<int:pk>/', views.MyPage.as_view()),
+    path('<int:pk>/', views.MyPageAPIView.as_view()),
+    path("steamlogin/", views.SteamLoginAPIView.as_view()),
+    path("steam-callback/", views.SteamCallbackAPIView.as_view()),
+    path("steamsignup/", views.SteamSignupAPIView.as_view()),
+    path("logout/", views.LogoutAPIView.as_view()),
 ]
