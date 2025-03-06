@@ -1,4 +1,3 @@
-import stat
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -6,6 +5,9 @@ from rest_framework.permissions import IsAuthenticated
 
 from .models import ChatSession, ChatMessage
 from .serializers import ChatSessionSerializer, ChatMessageSerializer
+
+from .utils import chatbot_call
+
 
 # Create your views here.
 class ChatSessionAPIView(APIView):
@@ -40,6 +42,6 @@ class ChatMessageAPIView(APIView):
         session = ChatSession.objects.get(pk=session_id)
         serializer = ChatMessageSerializer(data=request.data)
         if serializer.is_valid(raise_exception=True):
-            chatbot_message = ""
+            chatbot_message = chatbot_call(request.data["user_message"])
             serializer.save(session_id=session, chatbot_message=chatbot_message)
             return Response(serializer.data, status=status.HTTP_200_OK)

@@ -1,5 +1,4 @@
 from django.db import models
-from pandas import Timestamp
 
 # Create your models here.
 class ChatSession(models.Model):
