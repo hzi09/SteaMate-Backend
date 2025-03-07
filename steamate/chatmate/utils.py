@@ -5,11 +5,12 @@ from langchain_community.chat_message_histories import ChatMessageHistory
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_core.runnables import RunnableLambda
+from langchain.schema import Document
 from langchain_community.document_loaders import CSVLoader
 from dotenv import load_dotenv
-from langchain_postgres import PGVector  # pgvector용 모듈
+from langchain_community.vectorstores import PGVector # pgvector용 모듈
 import os
-
+import pandas as pd
 load_dotenv()
 
 # API 키 환경변수에서 가져오기
@@ -44,37 +45,79 @@ prompt = ChatPromptTemplate.from_messages(
     ]
 )
 
-def load_csv():
-    loader = CSVLoader(
-        file_path=os.path.abspath('chatmate/data/games.csv'),
-        encoding="utf-8",
-    )
-    data = loader.load()
-    return data
+# def load_csv():
+#     file_path=os.path.abspath('chatmate/data/games.csv')
+#     data = pd.read_csv(file_path, encoding="utf-8")
+#     documents = [
+#         Document(
+#             page_content=" | ".join([f"{col}: {value}" for col, value in row.items() if col != "appid"]),  # AppID 제외하고 모든 컬럼을 결합
+#             metadata={"appid": row["appid"], "genres": row["genres"]}  # 메타데이터에 AppID와 Category 포함
+#         )
+#         for _, row in data.iterrows()
+#     ]
+    
+#     return documents
 
-def create_vectorstore(data):
-    try:
-        # PGVector를 사용한 벡터 스토어 생성
-        vector_store = PGVector.from_documents(
-            documents=data,
-            embedding=embeddings,
-            connection=CONNECTION_STRING,
-            collection_name="games_collection",  # 테이블 이름 역할
-        )
-        print("PGVector 벡터 DB를 생성하였습니다.")
-        # 우선 모든에러처리
-    except Exception as e: 
-        print(f"벡터 db 초기화 중 오류 :: {e}")
+# def create_vectorstore(data):
+#     try:
+#         # PGVector를 사용한 벡터 스토어 생성
+#         vector_store = PGVector.from_documents(
+#             documents=data,
+#             embedding=embeddings,
+#             connection=CONNECTION_STRING,
+#             collection_name="games_collection",  # 테이블 이름 역할
+#         )
+        
+#         print("PGVector 벡터 DB를 생성하였습니다.")
+#         # 우선 모든에러처리
+#     except Exception as e: 
+#         print(f"벡터 db 초기화 중 오류 :: {e}")
+#     return vector_store
+
+def load_and_chunk_csv(chunk_size=100):
+    file_path = os.path.abspath('chatmate/data/games.csv')
+    data = pd.read_csv(file_path, encoding="utf-8")
+    
+    chunks = []
+    for i in range(0, len(data), chunk_size):
+        chunk = data.iloc[i:i+chunk_size]
+        chunk_documents = [
+            Document(
+                page_content=" | ".join([f"{col}: {value}" for col, value in row.items() if col != "appid"]),
+                metadata={"appid": row["appid"], "genres": row["genres"]}
+            )
+            for _, row in chunk.iterrows()
+        ]
+        chunks.append(chunk_documents)
+    
+    return chunks
+
+def create_vectorstore_from_chunks(chunks):
+    vector_store = None
+    for chunk in chunks:
+        if vector_store is None:
+            vector_store = PGVector.from_documents(
+                documents=chunk,
+                embedding=embeddings,
+                connection_string=CONNECTION_STRING,
+                collection_name="games_collection",
+                use_jsonb=True
+            )
+        else:
+            vector_store.add_documents(chunk)
+    
     return vector_store
+
 
 def initialize_vectorstore():
     
     try: 
         # 벡터 스토어 로드 시도
         vector_store = PGVector(
-            embeddings=embeddings,
-            connection=CONNECTION_STRING,
+            embedding_function=embeddings,
+            connection_string=CONNECTION_STRING,
             collection_name="games_collection",
+            use_jsonb=True
         )
         # 우선 모든에러처리
     except Exception as e: 
@@ -84,10 +127,10 @@ def initialize_vectorstore():
     sample = vector_store.similarity_search("test", k=1)
     if not sample:
         print("PGVector 벡터 DB가 비어 있습니다. 데이터를 생성합니다.")
-        data = load_csv()
-        vector_store = create_vectorstore(data)
+        data = load_and_chunk_csv()
+        vector_store = create_vectorstore_from_chunks(data)
     else:
-        print("기존 PGVector 벡터 DB를 로드했습니다. 문서 수:")
+        print("기존 PGVector 벡터 DB를 로드했습니다.")
     
     return vector_store
 # 벡터 스토어 초기화
@@ -122,14 +165,13 @@ chain_with_history = RunnableWithMessageHistory(
     history_messages_key="chat_history",
 )
 
-def chatbot_call(user_input):
+def chatbot_call(user_input, session_id):
     # RAG 체인을 통해 컨텍스트 생성
     context = rag_chain.invoke(f"Translate the following question into English: {user_input}")
     
     answer = chain_with_history.invoke(
         {"input" : user_input, "context" : context},
-        config ={"configurable": {"session_id": "dltnrhks1"}}
+        config ={"configurable": {"session_id": session_id}}
     )
     print(context)
-    print("------" * 15)
     return answer

@@ -42,6 +42,6 @@ class ChatMessageAPIView(APIView):
         session = ChatSession.objects.get(pk=session_id)
         serializer = ChatMessageSerializer(data=request.data)
         if serializer.is_valid(raise_exception=True):
-            chatbot_message = chatbot_call(request.data["user_message"])
+            chatbot_message = chatbot_call(request.data["user_message"], session_id)
             serializer.save(session_id=session, chatbot_message=chatbot_message)
             return Response(serializer.data, status=status.HTTP_200_OK)
