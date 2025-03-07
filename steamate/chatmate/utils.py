@@ -53,26 +53,36 @@ def load_csv():
     return data
 
 def create_vectorstore(data):
-    # PGVector를 사용한 벡터 스토어 생성
-    vector_store = PGVector.from_documents(
-        documents=data,
-        embedding=embeddings,
-        connection=CONNECTION_STRING,
-        collection_name="games_collection",  # 테이블 이름 역할
-    )
-    print("PGVector 벡터 DB를 생성하였습니다.")
+    try:
+        # PGVector를 사용한 벡터 스토어 생성
+        vector_store = PGVector.from_documents(
+            documents=data,
+            embedding=embeddings,
+            connection=CONNECTION_STRING,
+            collection_name="games_collection",  # 테이블 이름 역할
+        )
+        print("PGVector 벡터 DB를 생성하였습니다.")
+        # 우선 모든에러처리
+    except Exception as e: 
+        print(f"벡터 db 초기화 중 오류 :: {e}")
     return vector_store
 
 def initialize_vectorstore():
-    # 벡터 스토어 로드 시도
-    vector_store = PGVector(
-        embeddings=embeddings,
-        connection=CONNECTION_STRING,
-        collection_name="games_collection",
-    )
     
-    # 컬렉션에 데이터가 있는지 확인
-    if False:
+    try: 
+        # 벡터 스토어 로드 시도
+        vector_store = PGVector(
+            embeddings=embeddings,
+            connection=CONNECTION_STRING,
+            collection_name="games_collection",
+        )
+        # 우선 모든에러처리
+    except Exception as e: 
+        print(f"벡터 db 초기화 중 오류 :: {e}")
+    
+    # 데이터 비어있는지 확인
+    sample = vector_store.similarity_search("test", k=1)
+    if not sample:
         print("PGVector 벡터 DB가 비어 있습니다. 데이터를 생성합니다.")
         data = load_csv()
         vector_store = create_vectorstore(data)
@@ -80,9 +90,10 @@ def initialize_vectorstore():
         print("기존 PGVector 벡터 DB를 로드했습니다. 문서 수:")
     
     return vector_store
+# 벡터 스토어 초기화
+vector_store = initialize_vectorstore()
 
 # 벡터 DB에서 질문을 검색할 리트리버
-vector_store = initialize_vectorstore()  # 벡터 스토어 초기화
 retriever = vector_store.as_retriever()
 
 def docs_join_logic(docs):
@@ -119,6 +130,6 @@ def chatbot_call(user_input):
         {"input" : user_input, "context" : context},
         config ={"configurable": {"session_id": "dltnrhks1"}}
     )
-    
+    print(context)
     print("------" * 15)
     return answer
