@@ -8,6 +8,7 @@ requests==2.31
 python-dotenv==1.0.1
 pillow==11.1.0
 djangorestframework-simplejwt==5.5.0
+social-auth-app-django==5.4.3
 langchain_core==0.3.41
 langchain_community==0.3.19
 langchain_openai==0.3.7
