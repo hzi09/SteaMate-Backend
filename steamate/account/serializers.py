@@ -57,37 +57,30 @@ class UserUpdateSerializer(serializers.ModelSerializer):
         return instance
     
 
-class SteamLoginSerializer(serializers.Serializer):
-    """Steam 로그인 Serializer"""
-    steam_id = serializers.CharField(required=True)
-
-    def validate(self, attrs):
-        steam_id = attrs.get("steam_id")
-
-        # Steam ID가 이미 존재하는지 확인
-        user = User.objects.filter(steam_id=steam_id).first()
-
-        if not user:
-            user = User.objects.create(steam_id=steam_id)
-            return {"user": user, "created": True}
-        
-        return {"user": user, "created": False}
 
 class SteamSignupSerializer(serializers.ModelSerializer):
-    """Steam 회원가입 Serializer (추가 정보 입력)"""
+    """Steam 회원가입 Serializer"""
+    password2 = serializers.CharField(write_only=True)  # 비밀번호 확인 필드 추가
+
     class Meta:
         model = User
-        fields = ['username', 'nickname', 'email', 'birth', 'gender', 'steam_id']
-        extra_kwargs = {'steam_id': {'read_only': True}}
+        fields = ['username', 'nickname', 'email', 'birth', 'gender', 'steam_id', 'password', 'password2']
+        extra_kwargs = {'steam_id': {'read_only': True}, 'password': {'write_only': True}}
 
-    def validate_email(self, value):
-        """이메일 중복 체크"""
-        if User.objects.filter(email=value).exists():
-            raise serializers.ValidationError("이미 사용 중인 이메일입니다.")
-        return value
+    def validate(self, data):
+        """🔥 비밀번호 일치 확인"""
+        if data["password"] != data["password2"]:
+            raise serializers.ValidationError({"password2": "비밀번호가 일치하지 않습니다."})
+        return data
 
-    def update(self, instance, validated_data):
-        """추가 정보 업데이트"""
-        for attr, value in validated_data.items():
-            setattr(instance, attr, value)
-        instance.save()
+    def create(self, validated_data):
+        """회원가입 시 비밀번호 해싱"""
+        validated_data.pop("password2")  # `password2` 필드는 DB에 저장하지 않음
+        password = validated_data.pop("password", None)
+        user = User(**validated_data)
+
+        if password:
+            user.set_password(password)  # 비밀번호 해싱
+
+        user.save()
+        return user

@@ -28,7 +28,7 @@ class User(AbstractUser):
     birth = models.DateField()
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    steam_id = models.CharField(max_length=64, blank=True)
+    steam_id = models.CharField(max_length=20, blank=True)
     
     preferred_genre = models.ManyToManyField(Genre, related_name='preferred_genre')
     preferred_game = models.ManyToManyField(Game, related_name='preferred_game')
