@@ -173,7 +173,7 @@ def chatbot_call(user_input, session_id, genre=None, game=None, appid=None):
             } if genre else None,
             "filter": {
                 "appid": {
-                    "$and": appid
+                    "$not": appid
                 }
             } if appid else None
         }
