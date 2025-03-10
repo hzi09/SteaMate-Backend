@@ -64,7 +64,7 @@ class ChatMessageAPIView(APIView):
             appid = [game.appid for game in request.user.preferred_game.all()]
             game = [game.title for game in request.user.preferred_game.all()]
             # 챗봇 메시지 생성
-            chatbot_message = chatbot_call(request.data["user_message"], session_id, genre=[genre], game=game, appid=appid)
+            chatbot_message = chatbot_call(request.data["user_message"], session_id, genre=genre, game=game, appid=appid)
             serializer.save(session_id=session, chatbot_message=chatbot_message)
             return Response(serializer.data, status=status.HTTP_200_OK)
     
