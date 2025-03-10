@@ -8,6 +8,9 @@ load_dotenv()
 STEAM_API_KEY = os.getenv('STEAM_API_KEY')
 
 def get_or_create_genre(genre_name):
+    """
+    장르 이름을 받아서 Genre 테이블에 저장하거나 가져오기
+    """
     genre, created = Genre.objects.get_or_create(
         genre_name=genre_name.strip()
     )

@@ -94,7 +94,7 @@ REST_FRAMEWORK = {
 }
 
 
-
+# 현재 로그인 시간이 길면 개발에 용이할 것 같아서 길게 설정
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(days=1),  # 액세스 토큰 1시간 유지
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),  # 리프레시 토큰 7일 유지

@@ -194,6 +194,7 @@ class MyPageAPIView(APIView):
         serializer = UserUpdateSerializer(user)
         data = serializer.data
         
+        # Steam API로 사용자 정보 가져오기
         if user.steam_id:
             steam_url = f"http://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/?key={STEAM_API_KEY}&steamids={user.steam_id}"
             
@@ -210,12 +211,10 @@ class MyPageAPIView(APIView):
                         "avatar": steam_data.get("avatar"),
                         "country": steam_data.get("loccountrycode"),
                     }
+                    # 선호 게임이 없다면 라이브러리 전체를 가져와 저장
                     if not UserPreferredGame.objects.filter(user=user).exists():
                         appids, titles, playtimes = fetch_steam_library(user.steam_id)
-                        print(len(appids))
-                        game_list = []
                         for i in range(len(appids)):
-                            print(appids[i])
                             game = get_or_create_game(appid=appids[i])
                             try:
                                 UserPreferredGame.objects.create(user=user, game=game, playtime=playtimes[i])
@@ -253,6 +252,9 @@ class MyPageAPIView(APIView):
     
 
 class LogoutAPIView(APIView):
+    """
+    로그아웃 API
+    """
     permission_classes = [IsAuthenticated]
 
     def post(self, request):

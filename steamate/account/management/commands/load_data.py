@@ -16,6 +16,9 @@ class Command(BaseCommand):
     help = "Load game data from a CSV file into the database"
 
     def handle(self, *args, **kwargs):
+        '''
+        CSV 파일에서 게임 데이터를 읽어와 데이터베이스에 저장
+        '''
         file_path = os.path.join("account", "data", "steam_game_details.csv")
 
         if not os.path.exists(file_path):
@@ -42,7 +45,7 @@ class Command(BaseCommand):
                 description = row["detailed_description"]
                 review_score = float(row["positive_ratings"]) if row["positive_ratings"] else 0
 
-                # 날짜 변환 (DD MMM, YYYY → YYYY-MM-DD)
+                # 날짜 변환 (모델의 필드 타입에 맞게 변환)
                 try:
                     released_at = datetime.strptime(released_at, "%d %b, %Y").date()
                 except (ValueError, TypeError):
@@ -72,5 +75,5 @@ class Command(BaseCommand):
             except Exception as e:
                 self.stdout.write(self.style.ERROR(f"Error processing row {row.to_dict()} -> {e}"))
 
-        self.stdout.write(self.style.SUCCESS(f"Successfully added {game_count} new games!"))
+        self.stdout.write(self.style.SUCCESS(f"Successfully added {game_count} new games!")) # 추가된 게임 개수 출력력
         self.stdout.write(self.style.SUCCESS(f"Successfully added {genre_count} new genres!"))  # 정확한 장르 개수 출력
