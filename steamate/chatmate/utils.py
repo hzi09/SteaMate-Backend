@@ -39,11 +39,13 @@ str_outputparser = StrOutputParser()
 prompt = ChatPromptTemplate.from_messages(
     [
         MessagesPlaceholder(variable_name="chat_history"),
-        # ("system", "game : {context}"),
+        ("system", "game : {context}"),
         (
             "system",
             """당신은 게임 추천 전문가입니다. 반드시 다음 언어로 답변하시오 : korean.
             - 아래 조건에 따라 답변하시오.
+            - 주어진 게임들은 사용자에게 추천된 게임입니다
+            - 주어진 게임들의 댓글과 사용자의 선호 장르, 게임을 참고하여 답변하십시오.
             - 질문자가 선호하는 게임은 {game}입니다.
             - 질문자가 선호하는 장르는 {genre}입니다.
             """,
@@ -147,6 +149,30 @@ def bring_session_history(session_id):
         print(f"Session {session_id} expired or error occurred: {e}")
         return None
 
+def delete_messages_from_history(session_id, user_message):
+    """
+    채팅 히스토리에서 특정 메시지와 그에 대한 AI 응답을 삭제합니다.
+    """
+    try:
+        session_history = store.get(session_id)
+        if not session_history:
+            print(f"세션 {session_id}의 히스토리를 찾을 수 없습니다.")
+            return False
+            
+        # HumanMessage의 content로 인덱스 찾기
+        for i, msg in enumerate(session_history.messages):
+            if (isinstance(msg, HumanMessage) and 
+                msg.content == user_message):
+                # 해당 메시지와 다음 AI 메시지 삭제
+                del session_history.messages[i:i+2]
+                return True
+                
+        return False
+        
+    except Exception as e:
+        print(f"메시지 삭제 중 오류 발생: {e}")
+        return False
+    
 # 세션 내역 가져오기
 def get_session_history(session_ids):
     if session_ids not in store:
@@ -161,7 +187,7 @@ chain_with_history = RunnableWithMessageHistory(
     history_messages_key="chat_history",
 )
 
-def chatbot_call(user_input, session_id, genre=None, game=None, appid=None):
+def chatbot_call(user_input, session_id, genre, game, appid):
     # RAG 체인을 통해 컨텍스트 생성
     retriever = vector_store.as_retriever(
         search_kwargs={
@@ -185,4 +211,6 @@ def chatbot_call(user_input, session_id, genre=None, game=None, appid=None):
         {"input" : user_input, "context" : context, "genre" : ", ".join(genre), "game" : ", ".join(game)},
         config ={"configurable": {"session_id": session_id}}
     )
+    print(genre)
+    print(context)
     return answer
