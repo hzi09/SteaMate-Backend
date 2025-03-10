@@ -6,7 +6,7 @@ from rest_framework.permissions import IsAuthenticated
 from .models import ChatSession, ChatMessage
 from .serializers import ChatSessionSerializer, ChatMessageSerializer
 
-from .utils import chatbot_call, bring_session_history
+from .utils import chatbot_call, bring_session_history, delete_messages_from_history
 
 
 # Create your views here.
@@ -15,9 +15,9 @@ class ChatSessionAPIView(APIView):
     # 인증되지 않은 유저가 접근하면 401에러를 반환
     permission_classes = [IsAuthenticated]
 
-    # 세션 목록 조회
+    # 유저 세션 목록 조회
     def get(self, request):
-        sessions = ChatSession.objects.all()
+        sessions = ChatSession.objects.filter(user_id=request.user)
         serializer = ChatSessionSerializer(sessions, many=True)
         
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -27,8 +27,15 @@ class ChatSessionAPIView(APIView):
         serializer = ChatSessionSerializer(data=request.data)
         if serializer.is_valid(raise_exception=True):
             serializer.save(user_id = request.user)
-            return Response(serializer.data, status=status.HTTP_200_OK)
-
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+    
+    # 세션 삭제
+    def delete(self, request, session_id):
+        session = ChatSession.objects.get(pk=session_id)
+        session.delete()
+        return Response({"message" : "세션 삭제 완료"}, status=status.HTTP_200_OK)
+    
+    # 세션 수정
 
 class ChatMessageAPIView(APIView):
 
@@ -50,6 +57,35 @@ class ChatMessageAPIView(APIView):
     def post(self, request, session_id):
         session = ChatSession.objects.get(pk=session_id)
         serializer = ChatMessageSerializer(data=request.data)
+        if serializer.is_valid(raise_exception=True):
+            # 선호장르 가져오기
+            genre = [genre.genre_name for genre in request.user.preferred_genre.all()]
+            # 선호 게임 정보 가져오기(appid, game_title)
+            appid = [game.appid for game in request.user.preferred_game.all()]
+            game = [game.title for game in request.user.preferred_game.all()]
+            # 챗봇 메시지 생성
+            chatbot_message = chatbot_call(request.data["user_message"], session_id, genre=[genre], game=game, appid=appid)
+            serializer.save(session_id=session, chatbot_message=chatbot_message)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+    
+    # 대화 내역 삭제
+    def delete(self, request, session_id, message_id):
+        # DB에서 메시지 가져오기
+        message = ChatMessage.objects.get(pk=message_id)
+        # 메모리 히스토리에서 메시지 삭제
+        delete_messages_from_history(session_id, message.user_message)
+        # DB에서 메시지 삭제
+        message.delete()
+        return Response({"message" : "메시지 삭제 완료"}, status=status.HTTP_200_OK)
+    
+    def put(self, request, session_id, message_id):
+        # DB에서 메시지 가져오기
+        message = ChatMessage.objects.get(pk=message_id)
+        # 세션 가져오기
+        session = ChatSession.objects.get(pk=session_id)
+        # 메모리 히스토리에서 메시지 삭제
+        delete_messages_from_history(session_id, message.user_message)
+        serializer = ChatMessageSerializer(message, data=request.data)
         if serializer.is_valid(raise_exception=True):
             # 선호장르 가져오기
             genre = [genre.genre_name for genre in request.user.preferred_genre.all()]
