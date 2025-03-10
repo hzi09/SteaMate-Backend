@@ -35,7 +35,7 @@ class User(AbstractUser):
     updated_at = models.DateTimeField(auto_now=True)
     steam_id = models.CharField(max_length=20, blank=True, unique=True)
     preferred_genre = models.ManyToManyField(Genre, related_name='preferred_genre', blank = True)
-    preferred_game = models.ManyToManyField(Game, through='UserPreferredGame', related_name='preferred_game', blank = True)
+    preferred_game = models.ManyToManyField(Game, through='UserPreferredGame', related_name='user_preferred_game', blank = True)
     
     def __str__(self):
         return self.username
