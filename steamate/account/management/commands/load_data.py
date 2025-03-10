@@ -26,11 +26,25 @@ class Command(BaseCommand):
             return
 
         # pandas로 CSV 데이터 로드 및 NaN 처리
-        df = pd.read_csv(file_path, encoding="utf-8-sig").fillna({
-            "release_date": "",
-            "description": "",
-            "review_score": 0
-        })
+        try:
+            df = pd.read_csv(file_path, encoding="utf-8-sig").fillna({
+                "release_date": "",
+                "description": "",
+                "review_score": 0
+            })
+        except FileNotFoundError:
+            print(f"파일을 찾을 수 없습니다: {file_path}")
+            df = pd.DataFrame()  # 빈 데이터프레임 반환
+        except pd.errors.EmptyDataError:
+            print(f"파일이 비어 있습니다: {file_path}")
+            df = pd.DataFrame()  # 빈 데이터프레임 반환
+        except pd.errors.ParserError as e:
+            print(f"CSV 파일 파싱 오류 발생: {e}")
+            df = pd.DataFrame()  # 빈 데이터프레임 반환
+        except Exception as e:
+            print(f"예상치 못한 오류 발생: {e}")
+            df = pd.DataFrame()  # 빈 데이터프레임 반환
+            
 
         game_count = 0
         genre_count = 0  # 장르 개수 추적
@@ -41,8 +55,8 @@ class Command(BaseCommand):
                 appid = int(row["appid"])
                 title = row["name"].strip() if row["name"] else "Unknown"
                 genre_names = row["genres"].split(",") if row["genres"] else []
-                released_at = row["release_date"]
-                description = row["detailed_description"]
+                released_at = row["release_date"] if row["release_date"] else None
+                description = row["detailed_description"] if row["detailed_description"] else ""
                 review_score = float(row["positive_ratings"]) if row["positive_ratings"] else 0
 
                 # 날짜 변환 (모델의 필드 타입에 맞게 변환)
@@ -75,5 +89,5 @@ class Command(BaseCommand):
             except Exception as e:
                 self.stdout.write(self.style.ERROR(f"Error processing row {row.to_dict()} -> {e}"))
 
-        self.stdout.write(self.style.SUCCESS(f"Successfully added {game_count} new games!")) # 추가된 게임 개수 출력력
+        self.stdout.write(self.style.SUCCESS(f"Successfully added {game_count} new games!")) # 추가된 게임 개수 출력
         self.stdout.write(self.style.SUCCESS(f"Successfully added {genre_count} new genres!"))  # 정확한 장르 개수 출력

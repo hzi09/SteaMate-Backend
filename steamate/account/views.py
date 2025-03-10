@@ -228,7 +228,7 @@ class MyPageAPIView(APIView):
                 data["steam_profile_error"] = f"Steam API 호출 오류: {str(e)}"
         data["preferred_genre"] = [genre.genre_name for genre in user.preferred_genre.all()]
         data["preferred_game"] = [game.title for game in user.preferred_game.all()]
-        return Response(data)
+        return Response(data, status=status.HTTP_200_OK)
 
 
     def put(self, request,pk):
@@ -239,7 +239,7 @@ class MyPageAPIView(APIView):
         serializer = UserUpdateSerializer(user, data=request.data)
         if serializer.is_valid(raise_exception=True):
             serializer.save()
-            return Response(serializer.data)
+            return Response(serializer.data, status = status.HTTP_200_OK)
     
     def delete(self, request, pk):
         """사용자 탈퇴 및 정보 삭제"""

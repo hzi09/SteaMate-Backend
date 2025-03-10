@@ -93,10 +93,18 @@ def fetch_steam_library(steamid):
         response.raise_for_status()
         data = response.json()
         games = data.get("response", {}).get("games", [])  # 게임 목록 반환
-        game_appid = [game.get("appid") for game in games if "appid" in game]
-        game_names = [game.get("name") for game in games if "name" in game]
-        game_playtime = [game.get("playtime_forever") for game in games if "name" in game]
+        game_data = []
+        for game in games:
+            appid = game.get("appid")
+            name = game.get("name")
+            playtime = game.get("playtime_forever", 0)
+            
+            if appid and name:
+                game_data.append((appid, name, playtime))
+        if game_data:
+            game_appid, game_names, game_playtime = zip(*game_data)
+            return list(game_appid), list(game_names), list(game_playtime)
         
-        return game_appid, game_names, game_playtime
     except Exception as e:
-        return {"error": str(e)}  # 에러 발생 시 반환
+        print(f"error: {str(e)}")
+        return  [],[],[] # 에러 발생 시 빈 리스트 반환
