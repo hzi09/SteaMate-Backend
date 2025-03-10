@@ -3,9 +3,9 @@ version: '3.8'
 services:
   web:
     build:
-      context: .
+      context: ./steamate
     volumes:
-      - .:/app
+      - ./steamate:/app
     env_file:
       - .env
     ports:
@@ -20,6 +20,8 @@ services:
       done;
       python manage.py migrate;
       python manage.py runserver 0.0.0.0:8000"
+    networks:
+      - steamate-network
 
   db:
     image: ankane/pgvector:latest
@@ -32,6 +34,33 @@ services:
       test: ["CMD-SHELL", "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"]
       interval: 5s
       retries: 5
+    networks:
+      - steamate-network
+
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile  # 개발 환경에서 실행 시 Dockerfile.dev 사용
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    ports:
+      - "3000:3000"
+    environment:
+      - REACT_APP_API_URL=http://localhost:8000
+    command: npm start
+    stdin_open: true
+    tty: true
+    depends_on:
+      - web
+    networks:
+      - steamate-network
+
+
+networks:
+  steamate-network:
+    driver: bridge
 
 volumes:
   db_data:
