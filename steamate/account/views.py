@@ -2,7 +2,7 @@ from django.shortcuts import render, redirect
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework import status
-from .models import User
+from .models import User, UserPreferredGame, Game
 from .serializers import (CreateUserSerializer, UserUpdateSerializer,
                           SteamSignupSerializer)
 from rest_framework.permissions import AllowAny, IsAuthenticated, IsAdminUser
@@ -14,6 +14,14 @@ from rest_framework_simplejwt.tokens import RefreshToken
 import requests
 from rest_framework_simplejwt.exceptions import InvalidToken
 from rest_framework_simplejwt.exceptions import TokenError
+import os
+from dotenv import load_dotenv
+from .utils import fetch_steam_library, get_or_create_game, get_or_create_genre
+from rest_framework_simplejwt.authentication import JWTAuthentication
+
+
+load_dotenv()
+STEAM_API_KEY = os.getenv("STEAM_API_KEY")
 
 
 class SignupAPIView(APIView):
@@ -32,6 +40,11 @@ class SteamLoginAPIView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request):
+        if request.user.is_authenticated:
+            user = request.user
+            if user.steam_id:
+                return Response({"error": "이미 Steam 계정 연동이 되어 있습니다."}, status=status.HTTP_400_BAD_REQUEST)
+        
         """GET 요청 시 Steam 로그인 페이지로 리디렉션"""
         steam_openid_url = "https://steamcommunity.com/openid/login"
         
@@ -50,12 +63,13 @@ class SteamLoginAPIView(APIView):
 class SteamCallbackAPIView(APIView):
     """Steam 로그인 Callback API (Steam ID 검증)"""
     permission_classes = [AllowAny]
+    authentication_classes = [JWTAuthentication]
     
     def get(self, request):
         """Steam 로그인 성공 후, OpenID 검증"""
 
         # GET 파라미터를 dict 형태로 변환
-        openid_params = request.GET.dict()
+        openid_params = request.GET
         
         # 필수 OpenID 파라미터 유지
         steam_openid_params = {
@@ -100,8 +114,22 @@ class SteamCallbackAPIView(APIView):
             return Response({"error": f"Steam ID 처리 중 오류 발생: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
 
         # DB에서 해당 Steam ID가 존재하는지 확인
-        user = User.objects.filter(steam_id=steam_id).first()
+        if request.user.is_authenticated:
+            user = request.user
+            if user.steam_id:
+                return Response({"error": "이미 Steam 계정 연동이 되어 있습니다."}, status=status.HTTP_400_BAD_REQUEST)
+            
+            if User.objects.filter(steam_id=steam_id).exists():
+                return Response({"error": "이미 다른 계정에 연동된 Steam ID입니다."}, status=status.HTTP_400_BAD_REQUEST)
 
+            user.steam_id = steam_id
+            user.save()
+            return Response({"message": "Steam 계정 연동 완료"}, status=status.HTTP_200_OK)
+        
+        
+        user = User.objects.filter(steam_id=steam_id).first()
+        print(f"result: {user}")
+        
         if user:
             # 기존 회원이면 JWT 발급 후 로그인 처리
             refresh = RefreshToken.for_user(user)
@@ -147,6 +175,8 @@ class SteamSignupAPIView(APIView):
 
 
 
+
+
 class MyPageAPIView(APIView):
     """사용자 정보 조회, 수정, 삭제 API"""
     def get_permissions(self):
@@ -162,8 +192,46 @@ class MyPageAPIView(APIView):
         """사용자 정보 조회"""
         user = self.get_user(pk)
         serializer = UserUpdateSerializer(user)
-        return Response(serializer.data)
-    
+        data = serializer.data
+        
+        if user.steam_id:
+            steam_url = f"http://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/?key={STEAM_API_KEY}&steamids={user.steam_id}"
+            
+            try:
+                response = requests.get(steam_url)
+                response_data = response.json()
+
+                if "response" in response_data and "players" in response_data["response"]:
+                    steam_data = response_data["response"]["players"][0]
+
+                    data["steam_profile"] = {
+                        "personaname": steam_data.get("personaname"),
+                        "profileurl": steam_data.get("profileurl"),
+                        "avatar": steam_data.get("avatar"),
+                        "country": steam_data.get("loccountrycode"),
+                    }
+                    if not UserPreferredGame.objects.filter(user=user).exists():
+                        appids, titles, playtimes = fetch_steam_library(user.steam_id)
+                        print(len(appids))
+                        game_list = []
+                        for i in range(len(appids)):
+                            print(appids[i])
+                            game = get_or_create_game(appid=appids[i])
+                            try:
+                                UserPreferredGame.objects.create(user=user, game=game, playtime=playtimes[i])
+                            except Exception as e:
+                                print(f"UserPreferredGame 생성 오류: {str(e)}")
+
+                else:
+                    data["steam_profile_error"] = "Steam 프로필 정보를 가져오지 못했습니다."
+            
+            except Exception as e:
+                data["steam_profile_error"] = f"Steam API 호출 오류: {str(e)}"
+        data["preferred_genre"] = [genre.genre_name for genre in user.preferred_genre.all()]
+        data["preferred_game"] = [game.title for game in user.preferred_game.all()]
+        return Response(data)
+
+
     def put(self, request,pk):
         """사용자 정보 수정"""
         if pk != request.user.pk:
