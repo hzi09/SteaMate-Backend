@@ -19,6 +19,7 @@ services:
       sleep 2;
       done;
       python manage.py migrate;
+      python manage.py load_data;
       python manage.py runserver 0.0.0.0:8000"
     networks:
       - steamate-network

@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 from pathlib import Path
 from dotenv import load_dotenv
 import os
+from datetime import timedelta
 
 load_dotenv()
 
@@ -96,6 +97,22 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ],
+}
+
+
+# 현재 로그인 시간이 길면 개발에 용이할 것 같아서 길게 설정
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(days=1),  # 액세스 토큰 1시간 유지
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),  # 리프레시 토큰 7일 유지
+    "ROTATE_REFRESH_TOKENS": True,  # 리프레시 토큰 갱신 시 새로운 토큰 발급
+    "BLACKLIST_AFTER_ROTATION": True,  # 기존 리프레시 토큰은 블랙리스트 처리
+    "ALGORITHM": "HS256",
+    "SIGNING_KEY": SECRET_KEY,  # Django의 `SECRET_KEY` 사용
+    "VERIFYING_KEY": None,
+    "AUTH_HEADER_TYPES": ("Bearer",),  # `Authorization: Bearer <토큰>` 형식 사용
+    "USER_ID_FIELD": "id",
+    "USER_ID_CLAIM": "user_id",
+    "AUTH_TOKEN_CLASSES": ("rest_framework_simplejwt.tokens.AccessToken",),
 }
 
 
