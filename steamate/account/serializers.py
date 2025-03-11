@@ -16,6 +16,7 @@ class CreateUserSerializer(serializers.ModelSerializer):
             gender=validated_data['gender'],
         )
         user.set_password(validated_data['password'])
+        user.is_verified = False # 이메일 인증 전까지 False
         user.save()
         return user
         
@@ -65,7 +66,7 @@ class SteamSignupSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['username', 'nickname', 'email', 'birth', 'gender', 'steam_id', 'password', 'confirm_password']
-        extra_kwargs = {'steam_id': {'read_only': False}, 'password': {'write_only': True}}
+        extra_kwargs = {'password': {'write_only': True}}
 
     def validate(self, data):
         """비밀번호 일치 확인"""
@@ -78,6 +79,7 @@ class SteamSignupSerializer(serializers.ModelSerializer):
         validated_data.pop("confirm_password")  # `confirm_password` 필드는 DB에 저장하지 않음
         password = validated_data.pop("password", None)
         user = User(**validated_data)
+        user.is_verified = True # 이메일 인증 생략략
 
         if password:
             user.set_password(password)  # 비밀번호 해싱

@@ -11,4 +11,5 @@ urlpatterns = [
     path("steam-callback/", views.SteamCallbackAPIView.as_view()),
     path("steamsignup/", views.SteamSignupAPIView.as_view()),
     path("logout/", views.LogoutAPIView.as_view()),
+    path('email-verify/<uidb64>/<token>/', views.EmailVerifyAPIView.as_view(), name='email-verify'),
 ]
