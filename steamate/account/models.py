@@ -1,5 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
+from django.contrib.auth.validators import UnicodeUsernameValidator
+from django.core.validators import MinLengthValidator
 
 # Create your models here.
 
@@ -25,7 +27,8 @@ class User(AbstractUser):
         여 = 2, "여"
         공개안함 = 3, "공개 안 함"
     
-    nickname = models.CharField(max_length=50)
+    nickname = models.CharField(max_length=50, unique=True)
+    username = models.CharField(error_messages={'unique': 'A user with that username already exists.'}, help_text='Required. 150 characters or fewer. Letters, digits and @/./+/-/_ only.', max_length=20, unique=True, validators=[UnicodeUsernameValidator(), MinLengthValidator(5)], verbose_name='username')
     email = models.EmailField(unique=True)
     profile_image = models.ImageField(
         upload_to='user/profile_image/',
@@ -34,7 +37,7 @@ class User(AbstractUser):
     birth = models.DateField()
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    steam_id = models.CharField(max_length=20, blank=True, unique=True)
+    steam_id = models.CharField(max_length=20, blank=True, null=True, unique=True)
     preferred_genre = models.ManyToManyField(Genre, related_name='users_preferred_genre', blank = True)
     preferred_game = models.ManyToManyField(Game, through='UserPreferredGame', related_name='users_preferred_game', blank = True)
     is_verified = models.BooleanField(default=False)

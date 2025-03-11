@@ -184,3 +184,16 @@ STATICFILES_DIRS = [BASE_DIR / 'static']
 # media files
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / 'media'
+
+
+
+# 이메일 설정 (Gmail 기준)
+# .env에 EMAIL_HOST_USER, EMAIL_HOST_PASSWORD 추가
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_HOST = "smtp.gmail.com"
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_USE_SSL = False  # TLS를 사용할 경우 False로 설정
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")  # 환경변수에서 이메일 계정 로드
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")  # 환경변수에서 비밀번호 로드
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER  # 기본 발신 이메일 주소
