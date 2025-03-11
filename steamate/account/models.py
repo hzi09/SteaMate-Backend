@@ -16,8 +16,8 @@ class Game(models.Model):
     description = models.TextField(blank = True)
     review_score = models.FloatField(default = 0, blank = True)
     comment = models.TextField(blank = True)
-    header_image = models.TextField(blank = True)
-    trailer_url = models.TextField(blank = True)
+    header_image = models.URLField(blank = True)
+    trailer_url = models.URLField(blank = True)
     
 
 class User(AbstractUser):
@@ -28,7 +28,7 @@ class User(AbstractUser):
         공개안함 = 3, "공개 안 함"
     
     nickname = models.CharField(max_length=50, unique=True)
-    username = models.CharField(error_messages={'unique': 'A user with that username already exists.'}, help_text='Required. 150 characters or fewer. Letters, digits and @/./+/-/_ only.', max_length=20, unique=True, validators=[UnicodeUsernameValidator(), MinLengthValidator(5)], verbose_name='username')
+    username = models.CharField(error_messages={'unique': 'A user with that username already exists.'}, help_text='필수. 20자 이하. 문자, 숫자 및 @/./+/-/_만 가능.', max_length=20, unique=True, validators=[UnicodeUsernameValidator(), MinLengthValidator(5)], verbose_name='username')
     email = models.EmailField(unique=True)
     profile_image = models.ImageField(
         upload_to='user/profile_image/',

@@ -50,7 +50,8 @@ class SignupAPIView(APIView):
                 subject="이메일 인증",
                 message=f"이메일 인증을 위해 다음 링크를 클릭해주세요: {verification_url}",
                 from_email=settings.EMAIL_HOST_USER,
-                recipient_list=[user.email]
+                recipient_list=[user.email],
+                fail_silently=False
             )
             return Response({
                 "message":"회원가입 완료. 이메일을 확인하고 인증을 완료하세요.",
@@ -66,7 +67,7 @@ class EmailVerifyAPIView(APIView):
         try:
             # uidb64를 다시 pk 값으로 돌려 user 확인
             uid = force_str(urlsafe_base64_decode(uidb64))
-            user = User.objects.get(pk=uid)
+            user = get_object_or_404(User, pk=uid)
             
             if default_token_generator.check_token(user, token):
                 user.is_verified = True

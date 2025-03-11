@@ -14,6 +14,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 import os
 from datetime import timedelta
+from django.core.exceptions import ImproperlyConfigured
 
 load_dotenv()
 
@@ -187,13 +188,21 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 
 
+# 환경 변수에서 이메일 설정 로드
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
+
+# 예외 처리: 이메일 환경 변수가 없을 경우 오류 발생
+if not EMAIL_HOST_USER:
+    raise ImproperlyConfigured("⚠ EMAIL_HOST_USER가 설정되지 않았습니다. .env 파일을 확인하세요.")
+
+if not EMAIL_HOST_PASSWORD:
+    raise ImproperlyConfigured("⚠ EMAIL_HOST_PASSWORD가 설정되지 않았습니다. .env 파일을 확인하세요.")
+
 # 이메일 설정 (Gmail 기준)
-# .env에 EMAIL_HOST_USER, EMAIL_HOST_PASSWORD 추가
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = "smtp.gmail.com"
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_USE_SSL = False  # TLS를 사용할 경우 False로 설정
-EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")  # 환경변수에서 이메일 계정 로드
-EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")  # 환경변수에서 비밀번호 로드
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER  # 기본 발신 이메일 주소
