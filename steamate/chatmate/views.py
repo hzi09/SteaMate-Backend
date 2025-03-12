@@ -58,9 +58,9 @@ class ChatMessageAPIView(APIView):
         serializer = ChatMessageSerializer(data=request.data)
         if serializer.is_valid(raise_exception=True):
             # 선호장르 가져오기
-            genre = [genre.genre_name for genre in request.user.preferred_genre.all()]
+            genre = [genre.genre_name for genre in request.user.users_preferred_genre.all()]
             # 선호 게임 정보 가져오기
-            preferred_games = request.user.preferred_game.all()
+            preferred_games = request.user.users_preferred_game.all()
             appid = [ game.appid for game in preferred_games ]
             game = [ game.title for game in preferred_games ]
             # 챗봇 메시지 생성
