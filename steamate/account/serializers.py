@@ -2,11 +2,20 @@ from rest_framework import serializers
 from .models import User, Genre, Game
 
 class CreateUserSerializer(serializers.ModelSerializer):
+    confirm_password = serializers.CharField(write_only = True, required=True)
+
     class Meta:
         model = User
-        fields = ['nickname', 'username', 'password', 'email', 'birth', 'gender',]
+        fields = ['nickname', 'username', 'password', 'confirm_password', 'email', 'birth', 'gender',]
         extra_kwargs = {'password': {'write_only': True}}
     
+    def validate(self, data):
+        """비밀번호 일치 확인"""
+        if data["password"] != data["confirm_password"]:
+            raise serializers.ValidationError({"confirm_password": "비밀번호가 일치하지 않습니다."})
+        
+        return data
+
     def create(self, validated_data):
         user = User(
             email=validated_data['email'],
@@ -19,7 +28,7 @@ class CreateUserSerializer(serializers.ModelSerializer):
         user.set_password(validated_data['password'])
         user.save()
         return user
-        
+
 
 class UserUpdateSerializer(serializers.ModelSerializer):
     preferred_genre = serializers.PrimaryKeyRelatedField(
@@ -36,7 +45,8 @@ class UserUpdateSerializer(serializers.ModelSerializer):
         extra_kwargs = {'profile_image': {'required': False},
                         'steam_id': {'required': False}
         }
-        
+
+
     def update(self, instance, validated_data):
         """유저 정보 수정 로직 (ManyToManyField 처리 포함)"""
         preferred_genres = validated_data.pop("preferred_genre", None)

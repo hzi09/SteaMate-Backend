@@ -41,7 +41,6 @@ class User(AbstractUser):
     preferred_genre = models.ManyToManyField(Genre, related_name='users_preferred_genre', blank = True)
     preferred_game = models.ManyToManyField(Game, through='UserPreferredGame', related_name='users_preferred_game', blank = True)
     is_verified = models.BooleanField(default=False)
-    email_verification_token = models.CharField(max_length=255, blank=True, null=True)
     
     def __str__(self):
         return self.username
