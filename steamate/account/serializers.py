@@ -14,6 +14,7 @@ class CreateUserSerializer(serializers.ModelSerializer):
             nickname=validated_data['nickname'],
             birth=validated_data['birth'],
             gender=validated_data['gender'],
+            is_verified=False  # 이메일 인증 전까지 False
         )
         user.set_password(validated_data['password'])
         user.save()
@@ -65,19 +66,25 @@ class SteamSignupSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['username', 'nickname', 'email', 'birth', 'gender', 'steam_id', 'password', 'confirm_password']
-        extra_kwargs = {'steam_id': {'read_only': False}, 'password': {'write_only': True}}
+        extra_kwargs = {'password': {'write_only': True}}
 
     def validate(self, data):
         """비밀번호 일치 확인"""
         if data["password"] != data["confirm_password"]:
             raise serializers.ValidationError({"confirm_password": "비밀번호가 일치하지 않습니다."})
+        
+        if not data.get("steam_id"):
+            raise serializers.ValidationError({"steam_id": "Steam ID는 필수입니다."})
         return data
 
     def create(self, validated_data):
         """회원가입 시 비밀번호 해싱"""
         validated_data.pop("confirm_password")  # `confirm_password` 필드는 DB에 저장하지 않음
         password = validated_data.pop("password", None)
-        user = User(**validated_data)
+        user = User(
+            **validated_data,
+            is_verified = True # 이메일 인증 생략
+            )
 
         if password:
             user.set_password(password)  # 비밀번호 해싱

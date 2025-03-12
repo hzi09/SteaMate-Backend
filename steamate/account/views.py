@@ -18,6 +18,11 @@ import os
 from dotenv import load_dotenv
 from .utils import fetch_steam_library, get_or_create_game, get_or_create_genre
 from rest_framework_simplejwt.authentication import JWTAuthentication
+from django.urls import reverse
+from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
+from django.utils.encoding import force_bytes, force_str
+from django.contrib.auth.tokens import default_token_generator
+from django.core.mail import send_mail
 
 
 load_dotenv()
@@ -31,9 +36,47 @@ class SignupAPIView(APIView):
     def post(self, request):
         serializer = CreateUserSerializer(data=request.data)
         if serializer.is_valid(raise_exception=True):
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            user = serializer.save()
+            
+            # 이메일 인증 토큰 생성
+            uid = urlsafe_base64_encode(force_bytes(user.pk))
+            token = default_token_generator.make_token(user)
+            verification_url = request.build_absolute_uri(
+                reverse("account:verify-email", kwargs = {'uidb64': uid, 'token': token})
+            )
+            
+            # 이메일 전송
+            send_mail(
+                subject="이메일 인증",
+                message=f"이메일 인증을 위해 다음 링크를 클릭해주세요: {verification_url}",
+                from_email=settings.EMAIL_HOST_USER,
+                recipient_list=[user.email],
+                fail_silently=False
+            )
+            return Response({
+                "message":"회원가입 완료. 이메일을 확인하고 인증을 완료하세요.",
+                "email_verification_url":verification_url
+                }, status=status.HTTP_201_CREATED)
 
+
+class EmailVerifyAPIView(APIView):
+    """이메일 인증 API"""
+    permission_classes = [AllowAny]
+    
+    def get(self, request, uidb64, token):
+        try:
+            # uidb64를 다시 pk 값으로 돌려 user 확인
+            uid = force_str(urlsafe_base64_decode(uidb64))
+            user = get_object_or_404(User, pk=uid)
+            
+            if default_token_generator.check_token(user, token):
+                user.is_verified = True
+                user.save()
+                return Response({"message":"이메일 인증이 완료되었습니다."}, status=status.HTTP_200_OK)
+            else:
+                return Response({"error":"유효하지 않은 토큰입니다."}, status=status.HTTP_400_BAD_REQUEST)
+        except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+            return Response({"error":"잘못된 요청입니다."}, status=status.HTTP_400_BAD_REQUEST)
 
 class SteamLoginAPIView(APIView):
     """Steam OpenID 로그인 요청"""
@@ -160,6 +203,25 @@ class SteamSignupAPIView(APIView):
         serializer = SteamSignupSerializer(data=request.data)
         if serializer.is_valid(raise_exception=True):
             user = serializer.save()
+            
+            appids, titles, playtimes = fetch_steam_library(user.steam_id)
+            
+            if not appids:
+                print(f"Steam 라이브러리 불러오기 실패 또는 빈 데이터 (steam_id: {user.steam_id})")
+            
+            user_preferred_games = []
+            
+            for i in range(len(appids)):
+                game = get_or_create_game(appid=appids[i])
+                if game:
+                    user_preferred_games.append(UserPreferredGame(user=user, game=game, playtime=playtimes[i]))
+            
+            try:
+                if user_preferred_games:
+                    UserPreferredGame.objects.bulk_create(user_preferred_games)
+            except Exception as e:
+                print(f"UserPreferredGame 생성 오류: {str(e)}")
+                
 
             # JWT 토큰 발급
             refresh = RefreshToken.for_user(user)
@@ -214,12 +276,19 @@ class MyPageAPIView(APIView):
                     # 선호 게임이 없다면 라이브러리 전체를 가져와 저장
                     if not UserPreferredGame.objects.filter(user=user).exists():
                         appids, titles, playtimes = fetch_steam_library(user.steam_id)
+                        
+                        user_preferred_games = []
+                        
                         for i in range(len(appids)):
                             game = get_or_create_game(appid=appids[i])
-                            try:
-                                UserPreferredGame.objects.create(user=user, game=game, playtime=playtimes[i])
-                            except Exception as e:
-                                print(f"UserPreferredGame 생성 오류: {str(e)}")
+                            if game:
+                                user_preferred_games.append(UserPreferredGame(user=user, game=game, playtime=playtimes[i]))
+                                
+                        try:
+                            if user_preferred_games:
+                                UserPreferredGame.objects.bulk_create(user_preferred_games)
+                        except Exception as e:
+                            print(f"UserPreferredGame 생성 오류: {str(e)}")
 
                 else:
                     data["steam_profile_error"] = "Steam 프로필 정보를 가져오지 못했습니다."
