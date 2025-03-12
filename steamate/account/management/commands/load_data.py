@@ -82,7 +82,8 @@ class Command(BaseCommand):
                     if created_genre:
                         genre_count += 1  # 새롭게 생성된 장르만 카운트
 
-                game_count += 1
+                if created:
+                    game_count += 1
 
             except IntegrityError:
                 self.stdout.write(self.style.WARNING(f"Duplicate entry skipped for appid {appid}"))
