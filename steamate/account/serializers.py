@@ -37,7 +37,7 @@ class UserUpdateSerializer(serializers.ModelSerializer):
         }
         
     def update(self, instance, validated_data):
-        """🔥 유저 정보 수정 로직 (ManyToManyField 처리 포함)"""
+        """유저 정보 수정 로직 (ManyToManyField 처리 포함)"""
         preferred_genres = validated_data.pop("preferred_genre", None)
         preferred_games = validated_data.pop("preferred_game", None)
 
@@ -46,7 +46,7 @@ class UserUpdateSerializer(serializers.ModelSerializer):
             if getattr(instance, attr) != value:
                 setattr(instance, attr, value)
 
-        # 🔥 ManyToMany 필드 업데이트 (선택된 경우만 업데이트)
+        # ManyToMany 필드 업데이트 (선택된 경우만 업데이트)
         if preferred_genres is not None:
             instance.preferred_genre.set(preferred_genres)
 
@@ -60,22 +60,22 @@ class UserUpdateSerializer(serializers.ModelSerializer):
 
 class SteamSignupSerializer(serializers.ModelSerializer):
     """Steam 회원가입 Serializer"""
-    password2 = serializers.CharField(write_only=True)  # 비밀번호 확인 필드 추가
+    confirm_password = serializers.CharField(write_only=True)  # 비밀번호 확인 필드 추가
 
     class Meta:
         model = User
-        fields = ['username', 'nickname', 'email', 'birth', 'gender', 'steam_id', 'password', 'password2']
-        extra_kwargs = {'steam_id': {'read_only': True}, 'password': {'write_only': True}}
+        fields = ['username', 'nickname', 'email', 'birth', 'gender', 'steam_id', 'password', 'confirm_password']
+        extra_kwargs = {'steam_id': {'read_only': False}, 'password': {'write_only': True}}
 
     def validate(self, data):
-        """🔥 비밀번호 일치 확인"""
-        if data["password"] != data["password2"]:
-            raise serializers.ValidationError({"password2": "비밀번호가 일치하지 않습니다."})
+        """비밀번호 일치 확인"""
+        if data["password"] != data["confirm_password"]:
+            raise serializers.ValidationError({"confirm_password": "비밀번호가 일치하지 않습니다."})
         return data
 
     def create(self, validated_data):
         """회원가입 시 비밀번호 해싱"""
-        validated_data.pop("password2")  # `password2` 필드는 DB에 저장하지 않음
+        validated_data.pop("confirm_password")  # `confirm_password` 필드는 DB에 저장하지 않음
         password = validated_data.pop("password", None)
         user = User(**validated_data)
 
