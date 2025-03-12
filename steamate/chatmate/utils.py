@@ -37,7 +37,7 @@ str_outputparser = StrOutputParser()
 
 # 템플릿
 prompt = ChatPromptTemplate.from_messages([
-    # MessagesPlaceholder(variable_name="chat_history"),
+    MessagesPlaceholder(variable_name="chat_history"),
     (
         "system",
         """당신은 게임 추천 전문가입니다. 반드시 다음 규칙을 따르세요:
@@ -212,7 +212,7 @@ def chatbot_call(user_input, session_id, genre, game, appid):
     # RAG 체인을 통해 컨텍스트 생성
     retriever = vector_store.as_retriever(
         search_kwargs={
-            "k": 3,
+            "k": 10,
             "filter": {
                 "genres": {
                     "$in": genre
