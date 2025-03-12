@@ -11,12 +11,19 @@ class CreateUserSerializer(serializers.ModelSerializer):
     
     def validate(self, data):
         """비밀번호 일치 확인"""
+        password = data.get("password")
+        confirm_password = data.get("confirm_password")
+        
+        if not password or not confirm_password:
+            raise serializers.ValidationError({"confirm_password": "비밀번호와 비밀번호 확인을 모두 입력해야 합니다."})
+    
         if data["password"] != data["confirm_password"]:
             raise serializers.ValidationError({"confirm_password": "비밀번호가 일치하지 않습니다."})
         
         return data
 
     def create(self, validated_data):
+        validated_data.pop("confirm_password")
         user = User(
             email=validated_data['email'],
             username=validated_data['username'],
