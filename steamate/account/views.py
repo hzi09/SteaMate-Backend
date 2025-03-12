@@ -262,6 +262,7 @@ class MyPageAPIView(APIView):
             
             try:
                 response = requests.get(steam_url)
+                response.raise_for_status()
                 response_data = response.json()
 
                 if "response" in response_data and "players" in response_data["response"]:
