@@ -36,27 +36,48 @@ embeddings = OpenAIEmbeddings(
 str_outputparser = StrOutputParser()
 
 # 템플릿
-prompt = ChatPromptTemplate.from_messages(
-    [
-        MessagesPlaceholder(variable_name="chat_history"),
-        ("system", "game : {context}"),
-        (
-            "system",
-            """당신은 게임 추천 전문가입니다. 반드시 다음 언어로 답변하시오 : korean.
-            - 아래 조건에 따라 답변하시오.
-            - 주어진 게임들은 사용자에게 추천된 게임입니다
-            - 주어진 게임들의 댓글과 사용자의 선호 장르, 게임을 참고하여 답변하십시오.
-            - 질문자가 선호하는 게임은 {game}입니다.
-            - 질문자가 선호하는 장르는 {genre}입니다.
-            """,
-        ),
-        ("human", "{input}"),
-    ]
-)
+prompt = ChatPromptTemplate.from_messages([
+    # MessagesPlaceholder(variable_name="chat_history"),
+    (
+        "system",
+        """당신은 게임 추천 전문가입니다. 반드시 다음 규칙을 따르세요:
 
+        1. 가장 중요한 규칙:
+        - 반드시 아래 '추천 가능 게임 목록'에 포함된 게임만 추천해야 합니다
+        - 목록에 없는 게임은 절대 언급하지 마세요
+        
+        2. 사용자 정보:
+        - 선호하는 장르: {genre}
+        - 이전에 플레이하고 좋아했던 게임: {game}
+        
+        3. 추천 가능 게임 목록 (이 목록의 게임만 추천 가능):
+        {context}
+        
+        4. 추천 방식:
+        - 위 목록에서 3개의 게임만 선택하여 추천
+        - 각 게임에 대해 다음을 설명:
+          * 사용자의 선호 장르와의 연관성
+          * 이전에 플레이한 게임과의 유사점
+          * 게임의 핵심 특징
+        
+        5. 답변 형식:
+        [추천 게임 1]
+        - 추천 이유 및 설명
+        
+        [추천 게임 2]
+        - 추천 이유 및 설명
+        
+        [추천 게임 3]
+        - 추천 이유 및 설명
+        
+        주의: 절대로 위 '추천 가능 게임 목록'에 없는 게임을 언급하지 마세요.
+        """,
+    ),
+    ("human", "{input}"),
+])
 # 데이터 불러오기
 def load_and_chunk_csv(chunk_size=100):
-    file_path = os.path.abspath('chatmate/data/games.csv')
+    file_path = os.path.abspath('chatmate/data/games_v3.csv')
     data = pd.read_csv(file_path, encoding="utf-8")
     
     chunks = []
@@ -194,12 +215,12 @@ def chatbot_call(user_input, session_id, genre, game, appid):
             "k": 3,
             "filter": {
                 "genres": {
-                    "$and": genre
+                    "$in": genre
                 }
             } if genre else None,
             "filter": {
                 "appid": {
-                    "$not": appid
+                    "$nin": appid
                 }
             } if appid else None
         }
@@ -211,6 +232,5 @@ def chatbot_call(user_input, session_id, genre, game, appid):
         {"input" : user_input, "context" : context, "genre" : ", ".join(genre), "game" : ", ".join(game)},
         config ={"configurable": {"session_id": session_id}}
     )
-    print(genre)
     print(context)
     return answer

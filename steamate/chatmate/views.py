@@ -66,7 +66,7 @@ class ChatMessageAPIView(APIView):
             # 챗봇 메시지 생성
             chatbot_message = chatbot_call(request.data["user_message"], session_id, genre=genre, game=game, appid=appid)
             serializer.save(session_id=session, chatbot_message=chatbot_message)
-            return Response({"message" : "대화 내역 생성 완료", "data" : serializer.data}, status=status.HTTP_200_OK)
+            return Response({"message" : "대화 내역 생성 완료", "data" : serializer.data}, status=status.HTTP_201_CREATED)
     
     # 대화 내역 삭제
     def delete(self, request, session_id, message_id):
