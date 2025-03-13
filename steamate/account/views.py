@@ -23,6 +23,7 @@ from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from django.utils.encoding import force_bytes, force_str
 from django.contrib.auth.tokens import default_token_generator
 from django.core.mail import send_mail
+from django.utils.timezone import now
 
 
 load_dotenv()
@@ -69,14 +70,25 @@ class EmailVerifyAPIView(APIView):
             uid = force_str(urlsafe_base64_decode(uidb64))
             user = get_object_or_404(User, pk=uid)
             
+            if user.is_verified:
+                return redirect('/?error=already-verified')
+                # return Response({"message": "이미 인증된 계정입니다."}, status=status.HTTP_200_OK)
+            
+            if user.is_verification_expired():
+                return redirect('/?error=time-over')
+                # return Response({"error": "인증 시간이 만료되었습니다. 다시 요청해주세요."}, status=status.HTTP_400_BAD_REQUEST)
+            
             if default_token_generator.check_token(user, token):
                 user.is_verified = True
                 user.save()
-                return Response({"message":"이메일 인증이 완료되었습니다."}, status=status.HTTP_200_OK)
+                return redirect('/')
+                # return Response({"message":"이메일 인증이 완료되었습니다."}, status=status.HTTP_200_OK)
             else:
-                return Response({"error":"유효하지 않은 토큰입니다."}, status=status.HTTP_400_BAD_REQUEST)
+                return redirect('/?error=invalid-token')
+                # return Response({"error":"유효하지 않은 토큰입니다."}, status=status.HTTP_400_BAD_REQUEST)
         except (TypeError, ValueError, OverflowError, User.DoesNotExist):
-            return Response({"error":"잘못된 요청입니다."}, status=status.HTTP_400_BAD_REQUEST)
+            return redirect('/?error=bad-request')
+            # return Response({"error":"잘못된 요청입니다."}, status=status.HTTP_400_BAD_REQUEST)
 
 class SteamLoginAPIView(APIView):
     """Steam OpenID 로그인 요청"""
@@ -101,7 +113,7 @@ class SteamLoginAPIView(APIView):
         }
 
         steam_login_url = f"{steam_openid_url}?{urllib.parse.urlencode(params)}"
-        return redirect(steam_login_url)
+        return Response({"steam_login_url":steam_login_url}, status=status.HTTP_200_OK)
             
 class SteamCallbackAPIView(APIView):
     """Steam 로그인 Callback API (Steam ID 검증)"""
@@ -135,7 +147,6 @@ class SteamCallbackAPIView(APIView):
 
         # Steam 응답 처리
         response_text = response.text.strip()
-        print("Steam OpenID 응답 (첫 50자):", response_text[:50])
 
         # Steam 인증 실패 시
         if "is_valid:true" not in response_text:
@@ -171,7 +182,6 @@ class SteamCallbackAPIView(APIView):
         
         
         user = User.objects.filter(steam_id=steam_id).first()
-        print(f"result: {user}")
         
         if user:
             # 기존 회원이면 JWT 발급 후 로그인 처리
@@ -180,16 +190,14 @@ class SteamCallbackAPIView(APIView):
                 "message": "Steam 로그인 성공",
                 "access": str(refresh.access_token),
                 "refresh": str(refresh),
-                "user_id": user.id,
-                "redirect_url": "/"  # 홈으로 리다이렉트
+                "user_id": user.id
             }, status=status.HTTP_200_OK)
         
         # 신규 회원이면 추가 정보 입력 필요 → 회원가입 페이지로 리다이렉트
         return Response({
             "message": "Steam 인증 성공. 추가 정보 입력이 필요합니다.",
             "steam_id": steam_id,
-            "needs_update": True,
-            "redirect_url": "/signup"  # 회원가입 페이지로 이동
+            "needs_update": True
         }, status=status.HTTP_201_CREATED)
 
 
@@ -231,8 +239,7 @@ class SteamSignupAPIView(APIView):
                 "message": "Steam 회원가입 완료",
                 "access": str(refresh.access_token),
                 "refresh": str(refresh),
-                "user_id": user.id,
-                "redirect_url": "/"
+                "user_id": user.id
             }, status=status.HTTP_201_CREATED)
 
 
@@ -244,14 +251,15 @@ class MyPageAPIView(APIView):
     def get_permissions(self):
         """요청 방식(GET, PUT, DELETE)에 따라 다른 권한을 적용"""
         if self.request.method == "GET":
-            return [permissions.AllowAny()]
-        return [permissions.IsAuthenticated()]
+            return [AllowAny()]
+        return [IsAuthenticated()]
     
     def get_user(self, pk):
         return get_object_or_404(User, pk=pk)
         
     def get(self, request, pk):
         """사용자 정보 조회"""
+        
         user = self.get_user(pk)
         serializer = UserUpdateSerializer(user)
         data = serializer.data
