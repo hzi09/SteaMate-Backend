@@ -55,7 +55,7 @@ prompt = ChatPromptTemplate.from_messages([
         
         4. 추천 방식:
         - 위 '추천 가능 게임 목록'에서 3개의 게임만 선택하여 추천
-        - 각 게임에 대해 다음을 설명:
+        - 각 게임에 대해 다음을 고려하여 추천 이유를 작성:
           * 사용자의 선호 장르와의 연관성
           * 이전에 플레이한 게임과의 유사점
           * 게임의 핵심 특징
@@ -140,9 +140,6 @@ def initialize_vectorstore():
 # 벡터 스토어 초기화
 vector_store = initialize_vectorstore()
 
-# 벡터 DB에서 질문을 검색할 리트리버
-retriever = vector_store.as_retriever()
-
 def docs_join_logic(docs):
     return "\n".join([doc.page_content for doc in docs])
 
@@ -208,29 +205,86 @@ chain_with_history = RunnableWithMessageHistory(
     history_messages_key="chat_history",
 )
 
-def chatbot_call(user_input, session_id, genre, game, appid):
-    # RAG 체인을 통해 컨텍스트 생성
-    retriever = vector_store.as_retriever(
-        search_kwargs={
-            "k": 10,
-            "filter": {
-                "genres": {
-                    "$in": genre
-                }
-            } if genre else None,
-            "filter": {
-                "appid": {
-                    "$nin": appid
-                }
-            } if appid else None
-        }
-    )
-    rag_chain =  chat | str_outputparser | retriever | docs_join
-    context = rag_chain.invoke(f"Translate the following question into English: {user_input}")
+def generate_pseudo_document(user_input, chat):
+    """Query2doc/HyDE approach to generate a pseudo document."""
+    pseudo_doc_prompt = ChatPromptTemplate.from_messages([
+        ("system", """
+        Generate an ideal game description document based on the user's gaming query.
+        The document must include the following elements:
+        - Game genre and style
+        - Core gameplay elements
+        - Atmosphere and theme
+        - Expected gaming experience
+        """),
+        ("human", "{input}")
+    ])
     
+    pseudo_doc_chain = pseudo_doc_prompt | chat | str_outputparser
+    return pseudo_doc_chain.invoke({"input": user_input})
+
+def decompose_query(pseudo_doc, chat):
+    """Decompose the pseudo document into sub-queries."""
+    decompose_prompt = ChatPromptTemplate.from_messages([
+        ("system", """
+        Break down the given game description document into specific sub-queries.
+        Consider aspects such as:
+        - Genre-related questions
+        - Gameplay mechanics questions
+        - Story/atmosphere questions
+        - Difficulty/accessibility questions
+        """),
+        ("human", "{input}")
+    ])
+    
+    decompose_chain = decompose_prompt | chat | str_outputparser
+    return decompose_chain.invoke({"input": pseudo_doc}).split('\n')
+
+def chatbot_call(user_input, session_id, genre, game, appid):
+    # 1. Generate pseudo document
+    pseudo_doc = generate_pseudo_document(user_input, chat)
+    
+    # 2. Decompose the generated pseudo document into sub-queries
+    sub_queries = decompose_query(pseudo_doc, chat)
+    
+    # 3. Perform search for each sub-query
+    all_contexts = []
+    
+    # 필터 조건 생성
+    filter_conditions = []
+    
+    if genre:  # 장르가 있을 때만 필터 추가
+        filter_conditions.append({"genres": {"$in": genre}})
+    if appid:  # appid가 있을 때만 필터 추가
+        filter_conditions.append({"appid": {"$nin": appid}})
+        
+    # 검색 파라미터 설정
+    search_kwargs = {"k": 3}
+    if filter_conditions:  # 필터 조건이 하나라도 있을 때만 필터 추가
+        search_kwargs["filter"] = {"$and": filter_conditions}
+        
+    retriever = vector_store.as_retriever(search_kwargs=search_kwargs)
+    
+    # Search based on pseudo document
+    pseudo_doc_results = retriever.invoke(pseudo_doc)
+    all_contexts.extend(pseudo_doc_results)
+    
+    # Search based on sub-queries
+    for sub_query in sub_queries:
+        sub_results = retriever.invoke(sub_query)
+        all_contexts.extend(sub_results)
+    
+    # 4. 검색 결과 통합 및 중복 제거 (page_content 한 번만 접근)
+    context = "\n".join({doc.page_content for doc in all_contexts})
+    
+    # 5. Generate final response
     answer = chain_with_history.invoke(
-        {"input" : user_input, "context" : context, "genre" : ", ".join(genre), "game" : ", ".join(game)},
-        config ={"configurable": {"session_id": session_id}}
+        {
+            "input": user_input,
+            "context": context,
+            "genre": ", ".join(genre),
+            "game": ", ".join(game)
+        },
+        config={"configurable": {"session_id": session_id}}
     )
     print(context)
     return answer
