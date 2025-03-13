@@ -6,7 +6,7 @@ from rest_framework.permissions import IsAuthenticated
 from .models import ChatSession, ChatMessage
 from .serializers import ChatSessionSerializer, ChatMessageSerializer
 
-from .utils import chatbot_call, bring_session_history, delete_messages_from_history
+from .utils_v2 import chatbot_call, bring_session_history, delete_messages_from_history
 
 from django.shortcuts import get_object_or_404
 
