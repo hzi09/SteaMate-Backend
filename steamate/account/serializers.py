@@ -10,17 +10,39 @@ class CreateUserSerializer(serializers.ModelSerializer):
         extra_kwargs = {'password': {'write_only': True}}
     
     def validate(self, data):
-        """비밀번호 일치 확인"""
+        """비밀번호 일치 확인 및 중복된 username/nickname 확인"""
+        nickname = data.get("nickname")
+        username = data.get("username")
         password = data.get("password")
         confirm_password = data.get("confirm_password")
-        
-        if not password or not confirm_password:
+
+        if not all([password, confirm_password]):
             raise serializers.ValidationError({"confirm_password": "비밀번호와 비밀번호 확인을 모두 입력해야 합니다."})
-    
+
         if data["password"] != data["confirm_password"]:
             raise serializers.ValidationError({"confirm_password": "비밀번호가 일치하지 않습니다."})
+
+        self.delete_expired_user(username = username, nickname = nickname)
         
         return data
+        
+    def delete_expired_user(self, username = None, nickname=None):
+        # 중복된 username이 있고, 인증이 안 된 상태에 확인 기간이 만료된 상태라면 삭제
+        try:
+            if username:
+                existing_user = User.objects.get(username = username)
+                if existing_user.is_verification_expired():
+                    existing_user.delete()
+        except User.DoesNotExist:
+            pass
+        # 중복된 nickname이 있고, 인증이 안 된 상태에 확인 기간이 만료된 상태라면 삭제
+        try:
+            if nickname:
+                existing_user = User.objects.get(nickname = nickname)
+                if existing_user.is_verification_expired():
+                    existing_user.delete()
+        except User.DoesNotExist:
+            pass
 
     def create(self, validated_data):
         validated_data.pop("confirm_password")
@@ -86,13 +108,43 @@ class SteamSignupSerializer(serializers.ModelSerializer):
         extra_kwargs = {'password': {'write_only': True}}
 
     def validate(self, data):
+        nickname = data.get("nickname")
+        username = data.get("username")
+        password = data.get("password")
+        confirm_password = data.get("confirm_password")
+        
         """비밀번호 일치 확인"""
+        if not all([password, confirm_password]):
+            raise serializers.ValidationError({"confirm_password": "비밀번호와 비밀번호 확인을 모두 입력해야 합니다."})
+        
         if data["password"] != data["confirm_password"]:
             raise serializers.ValidationError({"confirm_password": "비밀번호가 일치하지 않습니다."})
         
         if not data.get("steam_id"):
             raise serializers.ValidationError({"steam_id": "Steam ID는 필수입니다."})
+        
+        self.delete_expired_user(username=username, nickname = nickname)
+        
         return data
+        
+    def delete_expired_user(self, username = None, nickname = None):
+        # 중복된 username이 있고, 인증이 안 된 상태에 확인 기간이 만료된 상태라면 삭제
+        try:
+            if username:
+                existing_user = User.objects.get(username = username)
+                if existing_user.is_verification_expired():
+                    existing_user.delete()
+        except User.DoesNotExist:
+            pass
+
+        # 중복된 nickname이 있고, 인증이 안 된 상태에 확인 기간이 만료된 상태라면 삭제
+        try:
+            if nickname:
+                existing_user = User.objects.get(nickname = nickname)
+                if existing_user.is_verification_expired():
+                    existing_user.delete()
+        except User.DoesNotExist:
+            pass
 
     def create(self, validated_data):
         """회원가입 시 비밀번호 해싱"""
