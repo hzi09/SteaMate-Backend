@@ -44,7 +44,7 @@ services:
       done;
       python manage.py migrate;
       python manage.py load_data;
-      python manage.py runserver 0.0.0.0:8000"
+      gunicorn config.wsgi:application --bind 0.0.0.0:8000"
     networks:
       - steamate-network
 
@@ -71,4 +71,4 @@ networks:
     driver: bridge
 
 volumes:
-  db_data:
+  static_volume:
