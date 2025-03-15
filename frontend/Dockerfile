@@ -1,5 +1,5 @@
 # Node.js 환경 설정
-FROM node:18
+FROM node:18 as build
 
 # 작업 디렉토리 설정
 WORKDIR /app
@@ -10,6 +10,8 @@ RUN npm install
 
 # 프로젝트 코드 복사
 COPY . .
+RUN npm run build
 
-# 개발 서버 실행 (파일 변경 시 자동 반영됨)
-CMD ["npm", "start"]
+RUN ls -la /app/build
+
+

@@ -1,16 +1,42 @@
 services:
+
+  frontend:
+    build:
+      context: ./frontend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    env_file:
+      - .env
+    ports:
+      - "3000:3000"
+    command: npm start
+    stdin_open: true
+    tty: true
+    networks:
+      - steamate-network
+  nginx:
+    build:
+      context: ./nginx
+    container_name: nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - frontend
+    networks:
+      - steamate-network
   web:
     build:
       context: ./steamate
     volumes:
       - ./steamate:/app
+      - /app/node_modules
     env_file:
       - .env
     ports:
       - "8000:8000"
-    depends_on:
-      db:
-        condition: service_healthy 
     command: >
       sh -c "until nc -z db 5432; do
       echo 'Waiting for DB...';
@@ -22,39 +48,22 @@ services:
     networks:
       - steamate-network
 
-  db:
-    image: ankane/pgvector:latest
-    env_file:
-      - .env
-    volumes:
-      - db_data:/var/lib/postgresql/data
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql  # 초기화 스크립트 추가
-    healthcheck: 
-      test: ["CMD-SHELL", "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"]
-      interval: 5s
-      retries: 5
-    networks:
-      - steamate-network
+  # db:
+  #   image: ankane/pgvector:latest
+  #   env_file:
+  #     - .env
+  #   volumes:
+  #     - db_data:/var/lib/postgresql/data
+  #     - ./init.sql:/docker-entrypoint-initdb.d/init.sql  # 초기화 스크립트 추가
+  #   healthcheck: 
+  #     test: ["CMD-SHELL", "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"]
+  #     interval: 5s
+  #     retries: 5
+  #   networks:
+  #     - steamate-network
 
 
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile  # 개발 환경에서 실행 시 Dockerfile.dev 사용
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
-    env_file:
-      - .env
-    ports:
-      - "3000:3000"
-    command: npm start
-    stdin_open: true
-    tty: true
-    depends_on:
-      - web
-    networks:
-      - steamate-network
+
 
 
 networks:
