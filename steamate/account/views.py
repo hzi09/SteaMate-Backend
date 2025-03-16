@@ -195,8 +195,8 @@ class SteamCallbackAPIView(APIView):
         # Steam ID 회원가입
         return Response({
             "new_user":True,
-            "maessage":"Steam 계정 호출 완료",
-            "Steam_id":{steam_id}}, status=status.HTTP_200_OK)
+            "message":"Steam 계정 호출 완료",
+            "steam_id":{steam_id}}, status=status.HTTP_200_OK)
 
 
 
