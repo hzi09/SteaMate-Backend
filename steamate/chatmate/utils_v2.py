@@ -210,26 +210,36 @@ def generate_pseudo_document(user_input, chat, genre, game):
     """Query2doc/HyDE approach to generate a pseudo document."""
     pseudo_doc_prompt = ChatPromptTemplate.from_messages([
         ("system", """
-        Generate a concise game description focusing on searchable key elements.
+        Generate a concise game description focusing primarily on searchable key elements. If available, consider user preferences as secondary factors.
+
+        User Preferences (for reference only, may be limited or not available):
+        - Preferred Genres: {genre}
+        - Favorite Games: {game}
         
-        Extract and expand on these aspects:
+        Extract and expand on these aspects, with priority on general game elements:
         1. Player Experience
         - Number of players (e.g., "single-player", "4-player co-op")
         - Play style (e.g., "casual", "competitive", "story-driven")
+        - If user has favorite games and they are relevant, consider similarities
         
         2. Core Elements
-        - Main genres
+        - Main genres (include diverse options, not just user preferences)
         - Key gameplay mechanics
-        - Primary features
+        - Primary features and selling points
         
         3. Technical Elements
         - Game type (e.g., "Action RPG", "First-person shooter")
         - Gameplay mode (e.g., "online multiplayer", "local co-op")
+        - If applicable, mention elements common with user's preferred games
         
         Format: Use short, keyword-rich phrases separated by commas
         Example: "4-player co-op, horror game, puzzle solving, team-based gameplay, atmospheric"
         
-        Note: Focus on elements that will help in searching similar games.
+        Notes: 
+        - Focus primarily on creating a comprehensive game description
+        - User preferences should be used as additional context, not the main focus
+        - Only reference user preferences if they are relevant to the query
+        - Maintain balance between general game elements and user preferences
         """),
         ("human", "{input}")
     ])
