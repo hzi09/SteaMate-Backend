@@ -70,7 +70,7 @@ class UserUpdateSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = User
-        fields = ['nickname', 'email', 'profile_image', 'preferred_genre', 'preferred_game', 'steam_id']
+        fields = ['nickname', 'profile_image', 'preferred_genre', 'preferred_game', 'steam_id']
         extra_kwargs = {'profile_image': {'required': False},
                         'steam_id': {'required': False}
         }
