@@ -109,7 +109,7 @@ class SteamLoginAPIView(APIView):
         params = {
             "openid.ns": "http://specs.openid.net/auth/2.0",
             "openid.mode": "checkid_setup",
-            "openid.return_to": f"{settings.SITE_URL}/api/v1/account/steam-callback/",
+            "openid.return_to": f"{settings.SITE_URL}/steam-callback/",
             "openid.realm": settings.SITE_URL,
             "openid.identity": "http://specs.openid.net/auth/2.0/identifier_select",
             "openid.claimed_id": "http://specs.openid.net/auth/2.0/identifier_select",
