@@ -1,5 +1,5 @@
 # Node.js 환경 설정
-FROM node:18 as build
+FROM node:18 AS build
 
 # 작업 디렉토리 설정
 WORKDIR /app

@@ -7,13 +7,13 @@ services:
       args:
         NODE_VERSION: 18
     volumes:
+      - frontend-build:/app/build
       - ./frontend:/app
-      - /app/node_modules:/app/node_modules
     env_file:
       - .env
     ports:
       - "3000:3000"
-    command: npm start
+    command: sh -c "npm install && npm start"
     stdin_open: true
     tty: true
     networks:
@@ -29,7 +29,7 @@ services:
       - "80:80"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf
-      - ./frontend/build:/usr/share/nginx/html
+      - frontend-build:/usr/share/nginx/html
     depends_on:
       - frontend
     networks:
@@ -37,7 +37,7 @@ services:
   web:
     build:
       context: ./steamate
-      dockerfile: /steamate/Dockerfile
+      dockerfile: Dockerfile
       args:
         PYTHON_VERSION: 3.12.9
       cache_from:
@@ -61,4 +61,4 @@ networks:
     driver: bridge
 
 volumes:
-  static_volume:
+  frontend-build:
