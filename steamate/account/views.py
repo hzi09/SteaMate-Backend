@@ -347,7 +347,7 @@ class MyPageAPIView(APIView):
             return Response({"error": "You do not have permission to delete this user"},status=status.HTTP_403_FORBIDDEN)
         
         user = self.get_user(pk)
-        refresh_token = request.data.get("refresh_token")
+        refresh_token = request.data.get("refresh")
         
         if not refresh_token:
             return Response({"error":"Refresh token is required for account deletion."}, status=status.HTTP_400_BAD_REQUEST)
