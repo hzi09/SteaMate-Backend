@@ -58,16 +58,17 @@ prompt = ChatPromptTemplate.from_messages([
         - 각 게임에 대해 다음을 고려하여 추천 이유를 작성:
           * 사용자의 선호 장르와의 연관성
           * 이전에 플레이한 게임과의 유사점
+          * 사용자 정보가 없다면 사용자 정보는 고려하지 않음
           * 게임의 핵심 특징
         
         5. 답변 형식:
-        [추천 게임 1]
+        [추천 게임 원본 제목 1]
         - 추천 이유 및 설명
         
-        [추천 게임 2]
+        [추천 게임 원본 제목 2]
         - 추천 이유 및 설명
         
-        [추천 게임 3]
+        [추천 게임 원본 제목 3]
         - 추천 이유 및 설명
         
         주의: 반드시 위 '추천 가능 게임 목록'에 없는 게임을 언급하지 마세요.
@@ -205,22 +206,46 @@ chain_with_history = RunnableWithMessageHistory(
     history_messages_key="chat_history",
 )
 
-def generate_pseudo_document(user_input, chat):
+def generate_pseudo_document(user_input, chat, genre, game):
     """Query2doc/HyDE approach to generate a pseudo document."""
     pseudo_doc_prompt = ChatPromptTemplate.from_messages([
         ("system", """
-        Generate an ideal game description document based on the user's gaming query.
-        The document must include the following elements:
-        - Game genre and style
-        - Core gameplay elements
-        - Atmosphere and theme
-        - Expected gaming experience
+        Generate a concise game description focusing primarily on searchable key elements. If available, consider user preferences as secondary factors.
+
+        User Preferences (for reference only, may be limited or not available):
+        - Preferred Genres: {genre}
+        - Favorite Games: {game}
+        
+        Extract and expand on these aspects, with priority on general game elements:
+        1. Player Experience
+        - Number of players (e.g., "single-player", "4-player co-op")
+        - Play style (e.g., "casual", "competitive", "story-driven")
+        - If user has favorite games and they are relevant, consider similarities
+        
+        2. Core Elements
+        - Main genres (include diverse options, not just user preferences)
+        - Key gameplay mechanics
+        - Primary features and selling points
+        
+        3. Technical Elements
+        - Game type (e.g., "Action RPG", "First-person shooter")
+        - Gameplay mode (e.g., "online multiplayer", "local co-op")
+        - If applicable, mention elements common with user's preferred games
+        
+        Format: Use short, keyword-rich phrases separated by commas
+        Example: "4-player co-op, horror game, puzzle solving, team-based gameplay, atmospheric"
+        
+        Notes: 
+        - Focus primarily on creating a comprehensive game description
+        - User preferences should be used as additional context, not the main focus
+        - Only reference user preferences if they are relevant to the query
+        - Maintain balance between general game elements and user preferences
         """),
         ("human", "{input}")
     ])
     
     pseudo_doc_chain = pseudo_doc_prompt | chat | str_outputparser
-    return pseudo_doc_chain.invoke({"input": user_input})
+    return pseudo_doc_chain.invoke({"input": user_input, "genre": genre, "game": game})
 
 def decompose_query(pseudo_doc, chat):
     """Decompose the pseudo document into sub-queries."""
@@ -228,10 +253,10 @@ def decompose_query(pseudo_doc, chat):
         ("system", """
         Break down the given game description document into specific sub-queries.
         Consider aspects such as:
-        - Genre-related questions
-        - Gameplay mechanics questions
-        - Story/atmosphere questions
-        - Difficulty/accessibility questions
+        - Genre-related question
+        - Gameplay mechanics question
+        - Story/atmosphere question
+        - Difficulty/accessibility question
         """),
         ("human", "{input}")
     ])
@@ -241,7 +266,7 @@ def decompose_query(pseudo_doc, chat):
 
 def chatbot_call(user_input, session_id, genre, game, appid):
     # 1. Generate pseudo document
-    pseudo_doc = generate_pseudo_document(user_input, chat)
+    pseudo_doc = generate_pseudo_document(user_input, chat, genre, game)
     
     # 2. Decompose the generated pseudo document into sub-queries
     sub_queries = decompose_query(pseudo_doc, chat)
@@ -249,24 +274,8 @@ def chatbot_call(user_input, session_id, genre, game, appid):
     # 3. Perform search for each sub-query
     all_contexts = []
     
-    # 필터 조건 생성
-    filter_conditions = []
-    
-    if genre:  # 장르가 있을 때만 필터 추가
-        filter_conditions.append({"genres": {"$in": genre}})
-    if appid:  # appid가 있을 때만 필터 추가
-        filter_conditions.append({"appid": {"$nin": appid}})
-        
     # 검색 파라미터 설정
-    search_kwargs = {"k": 3}
-    if filter_conditions:  # 필터 조건이 하나라도 있을 때만 필터 추가
-        search_kwargs["filter"] = {"$and": filter_conditions}
-        
-    retriever = vector_store.as_retriever(search_kwargs=search_kwargs)
-    
-    # Search based on pseudo document
-    pseudo_doc_results = retriever.invoke(pseudo_doc)
-    all_contexts.extend(pseudo_doc_results)
+    retriever = vector_store.as_retriever(search_kwargs={"k": 3, "filter": {"appid": {"$nin": appid}}})
     
     # Search based on sub-queries
     for sub_query in sub_queries:

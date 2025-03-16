@@ -181,7 +181,8 @@ class SteamCallbackAPIView(APIView):
             return Response({
                 "new_user":False,
                 "message": "Steam 계정 호출 완료",
-                "steam_id":{steam_id}}, status=status.HTTP_200_OK)
+                "steam_id":steam_id
+                }, status=status.HTTP_200_OK)
 
 
         # Steam ID 로그인
@@ -195,8 +196,9 @@ class SteamCallbackAPIView(APIView):
         # Steam ID 회원가입
         return Response({
             "new_user":True,
-            "maessage":"Steam 계정 호출 완료",
-            "Steam_id":{steam_id}}, status=status.HTTP_200_OK)
+            "message":"Steam 계정 호출 완료",
+            "steam_id":steam_id
+            }, status=status.HTTP_200_OK)
 
 
 
@@ -347,7 +349,7 @@ class MyPageAPIView(APIView):
             return Response({"error": "You do not have permission to delete this user"},status=status.HTTP_403_FORBIDDEN)
         
         user = self.get_user(pk)
-        refresh_token = request.data.get("refresh_token")
+        refresh_token = request.data.get("refresh")
         
         if not refresh_token:
             return Response({"error":"Refresh token is required for account deletion."}, status=status.HTTP_400_BAD_REQUEST)
