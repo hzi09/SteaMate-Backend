@@ -3,7 +3,7 @@ FROM node:18 AS build
 
 # 작업 디렉토리 설정
 WORKDIR /app
-ENV PATH /app/node_modules/.bin:$PATH
+ENV PATH=/app/node_modules/.bin:$PATH
 # package.json 및 package-lock.json 복사 후 의존성 설치
 COPY package.json package-lock.json ./
 RUN npm install --no-cache
