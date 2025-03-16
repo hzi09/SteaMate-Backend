@@ -7,7 +7,7 @@ import logging
 from rest_framework.response import Response
 from django.db.utils import IntegrityError
 from rest_framework import status
-
+from django.db import transaction
 
 load_dotenv()
 STEAM_API_KEY = os.getenv('STEAM_API_KEY')
@@ -129,17 +129,26 @@ def fetch_and_save_user_games(user):
         return None  # 빈 라이브러리인 경우 별도 처리 X
 
     user_preferred_games = []
+    user_preferred_genres = set()
 
     for i in range(len(appids)):
         game = get_or_create_game(appid=appids[i])
         if game:
             user_preferred_games.append(UserPreferredGame(user=user, game=game, playtime=playtimes[i]))
+            
+            genre_names = [g.strip() for g in game.genre.split(",") if g.strip()]
+            for genre_name in genre_names:
+                genre_instance = get_or_create_genre(genre_name)
+                user_preferred_genres.add(genre_instance)
 
-    if user_preferred_games:
-        try:
-            UserPreferredGame.objects.bulk_create(user_preferred_games)
-        except IntegrityError as e:
-            logger.error(f"UserPreferredGame 생성 오류: {str(e)}")
-            return Response({"error": "게임 데이터 저장 중 오류 발생"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    try:
+        with transaction.atomic():
+            if user_preferred_games:
+                UserPreferredGame.objects.bulk_create(user_preferred_games)
+            if user_preferred_genres:
+                user.preferred_genre.add(*user_preferred_genres)
+    except IntegrityError as e:
+        logger.error(f"UserPreferredGame 생성 오류: {str(e)}")
+        return Response({"error": "게임 데이터 저장 중 오류 발생"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
     return None  # 정상 처리 시 None 반환

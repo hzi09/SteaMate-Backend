@@ -100,8 +100,7 @@ class SteamLoginAPIView(APIView):
 
     def get(self, request):
         if request.user.is_authenticated:
-            user = request.user
-            if user.steam_id:
+            if request.user.steam_id:
                 return Response({"error": "이미 Steam 계정 연동이 되어 있습니다."}, status=status.HTTP_400_BAD_REQUEST)
         
         """GET 요청 시 Steam 로그인 페이지로 리디렉션"""
@@ -118,11 +117,10 @@ class SteamLoginAPIView(APIView):
 
         steam_login_url = f"{steam_openid_url}?{urllib.parse.urlencode(params)}"
         return Response({"steam_login_url":steam_login_url}, status=status.HTTP_200_OK)
-            
+
 class SteamCallbackAPIView(APIView):
     """Steam 로그인 Callback API (Steam ID 검증)"""
     permission_classes = [AllowAny]
-    authentication_classes = [JWTAuthentication]
     
     def get(self, request):
         """Steam 로그인 성공 후, OpenID 검증"""
@@ -171,11 +169,34 @@ class SteamCallbackAPIView(APIView):
         except Exception as e:
             return Response({"error": f"Steam ID 처리 중 오류 발생: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
 
+        # Steam ID 연동
+        user = request.user
+        if request.user.is_authenticated:
+            if user.steam_id:
+                return Response({"error": "이미 Steam 계정 연동이 되어 있습니다."}, status=status.HTTP_400_BAD_REQUEST)
 
+            if User.objects.filter(steam_id=steam_id).exists():
+                return Response({"error": "이미 다른 계정에 연동된 Steam ID입니다."}, status=status.HTTP_400_BAD_REQUEST)
+
+            return Response({
+                "new_user":False,
+                "message": "Steam 계정 호출 완료",
+                "steam_id":{steam_id}}, status=status.HTTP_200_OK)
+
+
+        # Steam ID 로그인
+        if User.objects.filter(steam_id=steam_id).exists():
+            return Response({
+                "new_user":False,
+                "message": "Steam 계정 호출 완료",
+                "steam_id":steam_id
+                }, status=status.HTTP_202_ACCEPTED)
+
+        # Steam ID 회원가입
         return Response({
-            "message": "Steam 계정 호출 완료",
-            "steam_id":steam_id
-            }, status=status.HTTP_202_ACCEPTED)
+            "new_user":True,
+            "maessage":"Steam 계정 호출 완료",
+            "Steam_id":{steam_id}}, status=status.HTTP_200_OK)
 
 
 
