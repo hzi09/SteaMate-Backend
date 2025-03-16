@@ -34,14 +34,14 @@ services:
       - frontend
     networks:
       - steamate-network
-  web:
+  steamate:
     build:
       context: ./steamate
       dockerfile: Dockerfile
       args:
         PYTHON_VERSION: 3.12.9
       cache_from:
-        - web:latest
+        - steamate:latest
     volumes:
       - ./steamate:/app
     env_file:
