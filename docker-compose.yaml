@@ -5,7 +5,7 @@ services:
       context: ./frontend
     volumes:
       - ./frontend:/app
-      - /app/node_modules
+      - /app/node_modules:/app/node_modules
     env_file:
       - .env
     ports:
@@ -16,7 +16,6 @@ services:
     networks:
       - steamate-network
   nginx:
-    image: nginx:1.24.0
     build:
       context: ./nginx
     container_name: nginx
@@ -34,38 +33,16 @@ services:
       context: ./steamate
     volumes:
       - ./steamate:/app
-      - /app/node_modules
     env_file:
       - .env
     ports:
       - "8000:8000"
     command: >
-      sh -c "until nc -z db 5432; do
-      echo 'Waiting for DB...';
-      sleep 2;
-      done;
       python manage.py migrate;
       python manage.py load_data;
       gunicorn config.wsgi:application --bind 0.0.0.0:8000"
     networks:
       - steamate-network
-
-  # db:
-  #   image: ankane/pgvector:latest
-  #   env_file:
-  #     - .env
-  #   volumes:
-  #     - db_data:/var/lib/postgresql/data
-  #     - ./init.sql:/docker-entrypoint-initdb.d/init.sql  # 초기화 스크립트 추가
-  #   healthcheck: 
-  #     test: ["CMD-SHELL", "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"]
-  #     interval: 5s
-  #     retries: 5
-  #   networks:
-  #     - steamate-network
-
-
-
 
 
 networks:
