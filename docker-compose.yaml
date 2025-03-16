@@ -51,3 +51,11 @@ networks:
 
 volumes:
   static_volume:
+
+build:
+  context: ./frontend
+  dockerfile: Dockerfile
+  args:
+    NODE_VERSION: 18.17.1
+  cache_from:
+    - frontend:latest
