@@ -1,60 +1,42 @@
+version: '3.8'
 services:
-  web:
+  steamate:
+    container_name: steamate
     build:
       context: ./steamate
+      dockerfile: Dockerfile
+      args:
+        PYTHON_VERSION: 3.12.9
+      cache_from:
+        - steamate:latest
     volumes:
       - ./steamate:/app
     env_file:
       - .env
     ports:
       - "8000:8000"
-    depends_on:
-      db:
-        condition: service_healthy 
-    command: >
-      sh -c "until nc -z db 5432; do
-      echo 'Waiting for DB...';
-      sleep 2;
-      done;
-      python manage.py migrate;
-      python manage.py load_data;
-      python manage.py runserver 0.0.0.0:8000"
+    command: sh -c "python manage.py migrate && python manage.py load_data && gunicorn config.wsgi:application --bind 0.0.0.0:8000"
     networks:
       - steamate-network
 
-  db:
-    image: ankane/pgvector:latest
-    env_file:
-      - .env
-    volumes:
-      - db_data:/var/lib/postgresql/data
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql  # 초기화 스크립트 추가
-    healthcheck: 
-      test: ["CMD-SHELL", "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"]
-      interval: 5s
-      retries: 5
-    networks:
-      - steamate-network
-
-
-  frontend:
+  nginx:
     build:
-      context: ./frontend
-      dockerfile: Dockerfile  # 개발 환경에서 실행 시 Dockerfile.dev 사용
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
-    env_file:
-      - .env
+      context: ./nginx
+      args:
+        NGINX_VERSION: 1.24.0
+    container_name: nginx
+    restart: "on-failure"
     ports:
-      - "3000:3000"
-    command: npm start
-    stdin_open: true
-    tty: true
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+      - frontend-build:/usr/share/nginx/html
     depends_on:
-      - web
+      - frontend
+      - steamate
     networks:
       - steamate-network
+
 
 
 networks:
@@ -62,4 +44,4 @@ networks:
     driver: bridge
 
 volumes:
-  db_data:
+  frontend-build:
