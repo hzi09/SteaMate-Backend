@@ -32,9 +32,9 @@ SECRET_KEY = os.getenv("DJANGO_SECRET_KEY")
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
 
-ALLOWED_HOSTS = ["52.79.104.109","steamate","localhost", "127.0.0.1"]
+ALLOWED_HOSTS = ["52.79.104.109","steamate","localhost", "127.0.0.1","steamate-front.vercel.app"]
 
-CSRF_TRUSTED_ORIGINS = ["http://52.79.104.109", "http://localhost", "http://steamate"]
+CSRF_TRUSTED_ORIGINS = ["http://52.79.104.109", "http://localhost", "http://steamate","https://steamate-front.vercel.app"]
 
 # Application definition
 
