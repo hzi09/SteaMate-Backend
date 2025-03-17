@@ -16,17 +16,20 @@ from rest_framework_simplejwt.exceptions import InvalidToken
 from rest_framework_simplejwt.exceptions import TokenError
 import os
 from dotenv import load_dotenv
-from .utils import fetch_steam_library, get_or_create_game, get_or_create_genre
+from .utils import fetch_steam_library, get_or_create_game, get_or_create_genre, fetch_and_save_user_games
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from django.urls import reverse
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from django.utils.encoding import force_bytes, force_str
 from django.contrib.auth.tokens import default_token_generator
 from django.core.mail import send_mail
-
+from django.utils.timezone import now
+import logging
+from django.db.utils import IntegrityError
 
 load_dotenv()
 STEAM_API_KEY = os.getenv("STEAM_API_KEY")
+logger = logging.getLogger(__name__)
 
 
 class SignupAPIView(APIView):
@@ -69,14 +72,27 @@ class EmailVerifyAPIView(APIView):
             uid = force_str(urlsafe_base64_decode(uidb64))
             user = get_object_or_404(User, pk=uid)
             
+            if user.is_verified:
+                return redirect('/?error=already-verified')
+                # return Response({"message": "이미 인증된 계정입니다."}, status=status.HTTP_200_OK)
+            
+            if user.is_verification_expired():
+                user.delete()
+                return redirect('/?error=time-over')
+                # return Response({"error": "인증 시간이 만료되었습니다. 다시 회원가입해주세요."}, status=status.HTTP_400_BAD_REQUEST)
+            
             if default_token_generator.check_token(user, token):
                 user.is_verified = True
                 user.save()
-                return Response({"message":"이메일 인증이 완료되었습니다."}, status=status.HTTP_200_OK)
+                return redirect('/')
+                # return Response({"message":"이메일 인증이 완료되었습니다."}, status=status.HTTP_200_OK)
             else:
-                return Response({"error":"유효하지 않은 토큰입니다."}, status=status.HTTP_400_BAD_REQUEST)
+                return redirect('/?error=invalid-token')
+                # return Response({"error":"유효하지 않은 토큰입니다."}, status=status.HTTP_400_BAD_REQUEST)
+
         except (TypeError, ValueError, OverflowError, User.DoesNotExist):
-            return Response({"error":"잘못된 요청입니다."}, status=status.HTTP_400_BAD_REQUEST)
+            return redirect('/?error=bad-request')
+            # return Response({"error":"잘못된 요청입니다."}, status=status.HTTP_400_BAD_REQUEST)
 
 class SteamLoginAPIView(APIView):
     """Steam OpenID 로그인 요청"""
@@ -84,8 +100,7 @@ class SteamLoginAPIView(APIView):
 
     def get(self, request):
         if request.user.is_authenticated:
-            user = request.user
-            if user.steam_id:
+            if request.user.steam_id:
                 return Response({"error": "이미 Steam 계정 연동이 되어 있습니다."}, status=status.HTTP_400_BAD_REQUEST)
         
         """GET 요청 시 Steam 로그인 페이지로 리디렉션"""
@@ -94,19 +109,18 @@ class SteamLoginAPIView(APIView):
         params = {
             "openid.ns": "http://specs.openid.net/auth/2.0",
             "openid.mode": "checkid_setup",
-            "openid.return_to": f"{settings.SITE_URL}/api/v1/account/steam-callback/",
+            "openid.return_to": f"{settings.SITE_URL}/steam-callback/",
             "openid.realm": settings.SITE_URL,
             "openid.identity": "http://specs.openid.net/auth/2.0/identifier_select",
             "openid.claimed_id": "http://specs.openid.net/auth/2.0/identifier_select",
         }
 
         steam_login_url = f"{steam_openid_url}?{urllib.parse.urlencode(params)}"
-        return redirect(steam_login_url)
-            
+        return Response({"steam_login_url":steam_login_url}, status=status.HTTP_200_OK)
+
 class SteamCallbackAPIView(APIView):
     """Steam 로그인 Callback API (Steam ID 검증)"""
     permission_classes = [AllowAny]
-    authentication_classes = [JWTAuthentication]
     
     def get(self, request):
         """Steam 로그인 성공 후, OpenID 검증"""
@@ -135,7 +149,6 @@ class SteamCallbackAPIView(APIView):
 
         # Steam 응답 처리
         response_text = response.text.strip()
-        print("Steam OpenID 응답 (첫 50자):", response_text[:50])
 
         # Steam 인증 실패 시
         if "is_valid:true" not in response_text:
@@ -156,43 +169,63 @@ class SteamCallbackAPIView(APIView):
         except Exception as e:
             return Response({"error": f"Steam ID 처리 중 오류 발생: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
 
-        # DB에서 해당 Steam ID가 존재하는지 확인
+        # Steam ID 연동
+        user = request.user
         if request.user.is_authenticated:
-            user = request.user
             if user.steam_id:
                 return Response({"error": "이미 Steam 계정 연동이 되어 있습니다."}, status=status.HTTP_400_BAD_REQUEST)
-            
+
             if User.objects.filter(steam_id=steam_id).exists():
                 return Response({"error": "이미 다른 계정에 연동된 Steam ID입니다."}, status=status.HTTP_400_BAD_REQUEST)
 
-            user.steam_id = steam_id
-            user.save()
-            return Response({"message": "Steam 계정 연동 완료"}, status=status.HTTP_200_OK)
-        
-        
-        user = User.objects.filter(steam_id=steam_id).first()
-        print(f"result: {user}")
-        
-        if user:
-            # 기존 회원이면 JWT 발급 후 로그인 처리
-            refresh = RefreshToken.for_user(user)
             return Response({
-                "message": "Steam 로그인 성공",
-                "access": str(refresh.access_token),
-                "refresh": str(refresh),
-                "user_id": user.id,
-                "redirect_url": "/"  # 홈으로 리다이렉트
-            }, status=status.HTTP_200_OK)
-        
-        # 신규 회원이면 추가 정보 입력 필요 → 회원가입 페이지로 리다이렉트
+                "new_user":False,
+                "message": "Steam 계정 호출 완료",
+                "steam_id":steam_id
+                }, status=status.HTTP_200_OK)
+
+
+        # Steam ID 로그인
+        if User.objects.filter(steam_id=steam_id).exists():
+            return Response({
+                "new_user":False,
+                "message": "Steam 계정 호출 완료",
+                "steam_id":steam_id
+                }, status=status.HTTP_202_ACCEPTED)
+
+        # Steam ID 회원가입
         return Response({
-            "message": "Steam 인증 성공. 추가 정보 입력이 필요합니다.",
-            "steam_id": steam_id,
-            "needs_update": True,
-            "redirect_url": "/signup"  # 회원가입 페이지로 이동
-        }, status=status.HTTP_201_CREATED)
+            "new_user":True,
+            "message":"Steam 계정 호출 완료",
+            "steam_id":steam_id
+            }, status=status.HTTP_200_OK)
 
 
+
+class SteamIDLoginAPIView(APIView):
+    """Steam ID 로그인 API"""
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        """Steam ID를 사용하여 로그인"""
+        steam_id = request.data.get("steam_id")
+
+        if not steam_id or not steam_id.isdigit():
+            return Response({"error": "올바른 Steam ID를 입력하세요."}, status=status.HTTP_400_BAD_REQUEST)
+
+        user = User.objects.filter(steam_id=steam_id).first()
+
+        if not user:
+            return Response({"error": "등록되지 않은 Steam ID입니다."}, status=status.HTTP_404_NOT_FOUND)
+
+        # 로그인 후 JWT 발급
+        refresh = RefreshToken.for_user(user)
+        return Response({
+            "message": "Steam 로그인 성공",
+            "access": str(refresh.access_token),
+            "refresh": str(refresh),
+            "user_id": user.id
+        }, status=status.HTTP_200_OK)
 
 class SteamSignupAPIView(APIView):
     """Steam 회원가입 (추가 정보 입력)"""
@@ -204,24 +237,9 @@ class SteamSignupAPIView(APIView):
         if serializer.is_valid(raise_exception=True):
             user = serializer.save()
             
-            appids, titles, playtimes = fetch_steam_library(user.steam_id)
-            
-            if not appids:
-                print(f"Steam 라이브러리 불러오기 실패 또는 빈 데이터 (steam_id: {user.steam_id})")
-            
-            user_preferred_games = []
-            
-            for i in range(len(appids)):
-                game = get_or_create_game(appid=appids[i])
-                if game:
-                    user_preferred_games.append(UserPreferredGame(user=user, game=game, playtime=playtimes[i]))
-            
-            try:
-                if user_preferred_games:
-                    UserPreferredGame.objects.bulk_create(user_preferred_games)
-            except Exception as e:
-                print(f"UserPreferredGame 생성 오류: {str(e)}")
-                
+            response = fetch_and_save_user_games(user)
+            if response:
+                return response
 
             # JWT 토큰 발급
             refresh = RefreshToken.for_user(user)
@@ -231,11 +249,39 @@ class SteamSignupAPIView(APIView):
                 "message": "Steam 회원가입 완료",
                 "access": str(refresh.access_token),
                 "refresh": str(refresh),
-                "user_id": user.id,
-                "redirect_url": "/"
+                "user_id": user.id
             }, status=status.HTTP_201_CREATED)
 
 
+class SteamLinkAPIView(APIView):
+    """Steam 계정 연동 API"""
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request):
+        """Steam 계정을 기존 유저 계정에 연동"""
+        steam_id = request.data.get("steam_id")
+        
+        if not steam_id or not steam_id.isdigit():
+            return Response({"error":"올바른 Steam ID를 입력하세요"}, status=status.HTTP_406_NOT_ACCEPTABLE)
+        
+        user = request.user
+        
+        # 다른 계정에 연동된 Steam ID 인지 확인
+        if User.objects.filter(steam_id=steam_id).exists():
+            return Response({"error":"이미 다른 계정에 연동된 Steam ID입니다."},status=status.HTTP_403_FORBIDDEN)
+        
+        # 현재 로그인한 유저에 Steam ID 정보가 있는지 확인
+        if user.steam_id:
+            return Response({"error":"이미 Steam ID가 연동되어있습니다."}, status=status.HTTP_409_CONFLICT)
+        
+        user.steam_id = steam_id
+        
+        response = fetch_and_save_user_games(user)
+        if response:
+            return response
+        
+        user.save()
+        return Response({"message":"Steam 계정 연동 완료"}, status=status.HTTP_201_CREATED)
 
 
 
@@ -244,14 +290,15 @@ class MyPageAPIView(APIView):
     def get_permissions(self):
         """요청 방식(GET, PUT, DELETE)에 따라 다른 권한을 적용"""
         if self.request.method == "GET":
-            return [permissions.AllowAny()]
-        return [permissions.IsAuthenticated()]
+            return [AllowAny()]
+        return [IsAuthenticated()]
     
     def get_user(self, pk):
         return get_object_or_404(User, pk=pk)
         
     def get(self, request, pk):
         """사용자 정보 조회"""
+        
         user = self.get_user(pk)
         serializer = UserUpdateSerializer(user)
         data = serializer.data
@@ -261,43 +308,28 @@ class MyPageAPIView(APIView):
             steam_url = f"http://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/?key={STEAM_API_KEY}&steamids={user.steam_id}"
             
             try:
-                response = requests.get(steam_url)
+                response = requests.get(steam_url, timeout=5)
                 response.raise_for_status()
                 response_data = response.json()
-
-                if "response" in response_data and "players" in response_data["response"]:
-                    steam_data = response_data["response"]["players"][0]
-
+                
+                players = response_data.get("response",{}).get("players",[])
+                if players:
+                    steam_data=players[0]
+                    
                     data["steam_profile"] = {
                         "personaname": steam_data.get("personaname"),
                         "profileurl": steam_data.get("profileurl"),
                         "avatar": steam_data.get("avatar"),
                         "country": steam_data.get("loccountrycode"),
                     }
-                    # 선호 게임이 없다면 라이브러리 전체를 가져와 저장
-                    if not UserPreferredGame.objects.filter(user=user).exists():
-                        appids, titles, playtimes = fetch_steam_library(user.steam_id)
-                        
-                        user_preferred_games = []
-                        
-                        for i in range(len(appids)):
-                            game = get_or_create_game(appid=appids[i])
-                            if game:
-                                user_preferred_games.append(UserPreferredGame(user=user, game=game, playtime=playtimes[i]))
-                                
-                        try:
-                            if user_preferred_games:
-                                UserPreferredGame.objects.bulk_create(user_preferred_games)
-                        except Exception as e:
-                            print(f"UserPreferredGame 생성 오류: {str(e)}")
-
                 else:
                     data["steam_profile_error"] = "Steam 프로필 정보를 가져오지 못했습니다."
-            
             except Exception as e:
                 data["steam_profile_error"] = f"Steam API 호출 오류: {str(e)}"
+        
         data["preferred_genre"] = [genre.genre_name for genre in user.preferred_genre.all()]
         data["preferred_game"] = [game.title for game in user.preferred_game.all()]
+        
         return Response(data, status=status.HTTP_200_OK)
 
 
@@ -305,7 +337,7 @@ class MyPageAPIView(APIView):
         """사용자 정보 수정"""
         if pk != request.user.pk:
             return Response({"error": "You do not have permission to this page"},status=status.HTTP_403_FORBIDDEN)
-        user = self.get_user(request.user.pk)
+        user = self.get_user(pk)
         serializer = UserUpdateSerializer(user, data=request.data)
         if serializer.is_valid(raise_exception=True):
             serializer.save()
@@ -316,8 +348,19 @@ class MyPageAPIView(APIView):
         if pk != request.user.pk:
             return Response({"error": "You do not have permission to delete this user"},status=status.HTTP_403_FORBIDDEN)
         
-        user = self.get_user(request.user.pk)
+        user = self.get_user(pk)
+        refresh_token = request.data.get("refresh")
+        
+        if not refresh_token:
+            return Response({"error":"Refresh token is required for account deletion."}, status=status.HTTP_400_BAD_REQUEST)
+        if refresh_token:
+            try:
+                token = RefreshToken(refresh_token)
+                token.blacklist()
+            except Exception as e:
+                return Response({"error": "Invalid refresh token."}, status=status.HTTP_400_BAD_REQUEST)
         user.delete()
+        
         return Response({"message":"withdrawal"},status=status.HTTP_204_NO_CONTENT)
     
 

@@ -2,6 +2,8 @@ from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.contrib.auth.validators import UnicodeUsernameValidator
 from django.core.validators import MinLengthValidator
+from django.utils.timezone import now
+from datetime import timedelta
 
 # Create your models here.
 
@@ -41,15 +43,24 @@ class User(AbstractUser):
     preferred_genre = models.ManyToManyField(Genre, related_name='users_preferred_genre', blank = True)
     preferred_game = models.ManyToManyField(Game, through='UserPreferredGame', related_name='users_preferred_game', blank = True)
     is_verified = models.BooleanField(default=False)
+    verification_expires_at = models.DateTimeField(default=now)
     
     def __str__(self):
         return self.username
     
     def save(self, *args, **kwargs):
-        """is_verified 값이 변경되면 is_active도 동기화"""
+        """
+        is_verified 값이 변경되면 is_active도 동기화
+        처음 생성이 될 때, 이메일 인증 만료 시간을 10분 뒤로 설정
+        """
+        if not self.pk:
+            self.verification_expires_at=now() + timedelta(minutes=10)
         self.is_active = self.is_verified
         super().save(*args, **kwargs)
     
+    def is_verification_expired(self):
+        """ 이메일 인증이 만료되었는지 확인하는 함수 """
+        return not self.is_verified and now() > self.verification_expires_at
 
 class UserPreferredGame(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)

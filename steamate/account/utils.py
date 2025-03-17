@@ -3,9 +3,17 @@ from .models import User, Genre, Game, UserPreferredGame
 import os
 from dotenv import load_dotenv
 from datetime import datetime
+import logging
+from rest_framework.response import Response
+from django.db.utils import IntegrityError
+from rest_framework import status
+from django.db import transaction
 
 load_dotenv()
 STEAM_API_KEY = os.getenv('STEAM_API_KEY')
+logger = logging.getLogger(__name__)
+
+
 
 def get_or_create_genre(genre_name):
     """
@@ -108,3 +116,39 @@ def fetch_steam_library(steamid):
     except Exception as e:
         print(f"error: {str(e)}")
         return  [],[],[] # 에러 발생 시 빈 리스트 반환
+
+
+def fetch_and_save_user_games(user):
+    """
+    사용자의 Steam 라이브러리를 가져와 UserPreferredGame에 저장하는 함수
+    """
+    appids, titles, playtimes = fetch_steam_library(user.steam_id)
+
+    if not appids:
+        logger.warning(f"Steam 라이브러리 불러오기 실패 또는 빈 데이터 (steam_id: {user.steam_id})")
+        return None  # 빈 라이브러리인 경우 별도 처리 X
+
+    user_preferred_games = []
+    user_preferred_genres = set()
+
+    for i in range(len(appids)):
+        game = get_or_create_game(appid=appids[i])
+        if game:
+            user_preferred_games.append(UserPreferredGame(user=user, game=game, playtime=playtimes[i]))
+            
+            genre_names = [g.strip() for g in game.genre.split(",") if g.strip()]
+            for genre_name in genre_names:
+                genre_instance = get_or_create_genre(genre_name)
+                user_preferred_genres.add(genre_instance)
+
+    try:
+        with transaction.atomic():
+            if user_preferred_games:
+                UserPreferredGame.objects.bulk_create(user_preferred_games)
+            if user_preferred_genres:
+                user.preferred_genre.add(*user_preferred_genres)
+    except IntegrityError as e:
+        logger.error(f"UserPreferredGame 생성 오류: {str(e)}")
+        return Response({"error": "게임 데이터 저장 중 오류 발생"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    return None  # 정상 처리 시 None 반환
