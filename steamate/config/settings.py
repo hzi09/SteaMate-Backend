@@ -30,9 +30,11 @@ SITE_URL = os.getenv("SITE_URL", "http://localhost:3000")
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["52.79.104.109","steamate","localhost", "127.0.0.1"]
+
+CSRF_TRUSTED_ORIGINS = ["http://52.79.104.109", "http://localhost", "http://steamate"]
 
 # Application definition
 
@@ -67,7 +69,8 @@ MIDDLEWARE = [
 ]
 
 CORS_ALLOWED_ORIGINS = [
-    'http://localhost:3000',  # React 앱의 주소
+    'http://localhost:3000',
+    'http://52.79.104.109'  # React 앱의 주소
 ]
 
 CORS_ALLOW_CREDENTIALS = True
