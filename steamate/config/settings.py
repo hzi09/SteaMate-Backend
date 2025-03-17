@@ -30,9 +30,11 @@ SITE_URL = os.getenv("SITE_URL", "http://localhost:8000")
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["52.79.104.109","steamate","localhost", "127.0.0.1"]
+
+CSRF_TRUSTED_ORIGINS = ["http://52.79.104.109", "http://localhost", "http://steamate"]
 
 # Application definition
 
