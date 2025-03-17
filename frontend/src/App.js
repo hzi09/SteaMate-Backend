@@ -6,8 +6,13 @@ import ChatMate from "./pages/ChatMate";
 import PickMate from "./pages/PickMate";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
+import { useEffect } from "react";
 
 function App() {
+//환경 변수 확
+  useEffect(() => {
+    console.log("API URL:", process.env.REACT_APP_API_URL);
+  }, []);
   return (
     <Router>
       <Routes>

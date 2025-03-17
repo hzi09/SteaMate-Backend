@@ -51,6 +51,7 @@ const Signup = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    console.log(process.env.REACT_APP_API_URL);
     setError("");
 
     // 이메일 조합 (직접 입력 여부 확인)

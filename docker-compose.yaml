@@ -6,14 +6,17 @@ services:
       context: ./frontend
       args:
         NODE_VERSION: 18
+        REACT_APP_API_URL: $REACT_APP_API_URL
     volumes:
       - frontend-build:/app/build
       - ./frontend:/app
     env_file:
       - .env
+    environment:
+      - REACT_APP_API_URL=${REACT_APP_API_URL}
     ports:
       - "3000:3000"
-    command: sh -c "npm install && npm start"
+    command: sh -c "npm install && npm run build"
     stdin_open: true
     tty: true
     networks:
@@ -32,10 +35,10 @@ services:
       - .env
     ports:
       - "8000:8000"
-    command: >
-      sh -c "python manage.py migrate &&
-         python manage.py load_data &&
-         gunicorn config.wsgi:application --bind 0.0.0.0:8000"
+    command: sh -c "
+        python manage.py migrate&&
+        python manage.py load_data&&
+        gunicorn config.wsgi:application --bind 0.0.0.0:8000"
     networks:
       - steamate-network
 
