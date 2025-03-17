@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 
 const BASE_URL = process.env.REACT_APP_API_URL
 
+
 const Signup = () => {
   const [customEmail, setCustomEmail] = useState(false);
   const [formData, setFormData] = useState({
