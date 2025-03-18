@@ -19,5 +19,6 @@ urlpatterns = [
     path("steamidlogin/", views.SteamIDLoginAPIView.as_view()),
     # Steam ID 연동
     path("steamlink/", views.SteamLinkAPIView.as_view()),
-    
+    # Steam 라이브러리 불러오기
+    path("steamlibrary/", views.GetSteamLibraryAPIView.as_view()),
 ]

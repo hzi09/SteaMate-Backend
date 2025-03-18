@@ -98,9 +98,24 @@ def fetch_steam_library(steamid):
     
     try:
         response = requests.get(url, params=params)
-        response.raise_for_status()
+        
+        if response.status_code != 200:
+            logger.error(f"Steam API 요청 실패 (status code: {response_code}) - 응답: {response.text}")
+            return [], [], []
+        
         data = response.json()
+        
+        if "response" not in data or "games" not in data["response"]:
+            logeer.warning(f"Steam API 응답 데이터 이상: {data}")
+            return [], [], []
+        
+        
         games = data.get("response", {}).get("games", [])  # 게임 목록 반환
+        
+        if not games:
+            logger.info(f"사용자의 Steam 라이브러리에 등록된 게임이 없음 (steam_id: {steamid})")
+            return [], [], []
+        
         game_data = []
         for game in games:
             appid = game.get("appid")
@@ -114,7 +129,7 @@ def fetch_steam_library(steamid):
             return list(game_appid), list(game_names), list(game_playtime)
         
     except Exception as e:
-        print(f"error: {str(e)}")
+        logger.exception(f"Steam 라이브러리 가져오기 실패 (error: {str(e)}")
         return  [],[],[] # 에러 발생 시 빈 리스트 반환
 
 
@@ -122,11 +137,13 @@ def fetch_and_save_user_games(user):
     """
     사용자의 Steam 라이브러리를 가져와 UserPreferredGame에 저장하는 함수
     """
+    logger.info(f"Steam 라이브러리 가져오기 요청 시작 (Steam id : {user.steam_id})")
+
     appids, titles, playtimes = fetch_steam_library(user.steam_id)
 
     if not appids:
         logger.warning(f"Steam 라이브러리 불러오기 실패 또는 빈 데이터 (steam_id: {user.steam_id})")
-        return None  # 빈 라이브러리인 경우 별도 처리 X
+        return "Steam 라이브러리가 비어있거나, 프로필이 비공개 상태입니다. Steam 설정에서 프로필과 게임 라이브러리를 공개로 변경해주세요."
 
     user_preferred_games = []
     user_preferred_genres = set()
@@ -149,6 +166,6 @@ def fetch_and_save_user_games(user):
                 user.preferred_genre.add(*user_preferred_genres)
     except IntegrityError as e:
         logger.error(f"UserPreferredGame 생성 오류: {str(e)}")
-        return Response({"error": "게임 데이터 저장 중 오류 발생"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return "게임 데이터 저장 중 오류 발생"
     
     return None  # 정상 처리 시 None 반환

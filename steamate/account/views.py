@@ -236,10 +236,6 @@ class SteamSignupAPIView(APIView):
         serializer = SteamSignupSerializer(data=request.data)
         if serializer.is_valid(raise_exception=True):
             user = serializer.save()
-            
-            response = fetch_and_save_user_games(user)
-            if response:
-                return response
 
             # JWT 토큰 발급
             refresh = RefreshToken.for_user(user)
@@ -275,10 +271,6 @@ class SteamLinkAPIView(APIView):
             return Response({"error":"이미 Steam ID가 연동되어있습니다."}, status=status.HTTP_409_CONFLICT)
         
         user.steam_id = steam_id
-        
-        response = fetch_and_save_user_games(user)
-        if response:
-            return response
         
         user.save()
         return Response({"message":"Steam 계정 연동 완료"}, status=status.HTTP_201_CREATED)
@@ -362,7 +354,20 @@ class MyPageAPIView(APIView):
         user.delete()
         
         return Response({"message":"withdrawal"},status=status.HTTP_204_NO_CONTENT)
+
+
+class GetSteamLibraryAPIView(APIView):
+    """
+    Stema 라이브러리를 가져오는 API
+    """
+    permission_classes = [IsAuthenticated]
     
+    def post(self, request):
+        error_message = fetch_and_save_user_games(request.user)
+        if error_message:
+            return Response({"message":"Steam 라이브러리 연동 실패. 공개 설정을 모두 공개로 해주세요."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        return Response({"message":"Steam 라이브러리 연동 완료"}, status=status.HTTP_201_CREATED)
 
 class LogoutAPIView(APIView):
     """
