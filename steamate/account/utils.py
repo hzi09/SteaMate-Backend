@@ -100,13 +100,13 @@ def fetch_steam_library(steamid):
         response = requests.get(url, params=params)
         
         if response.status_code != 200:
-            logger.error(f"Steam API 요청 실패 (status code: {response_code}) - 응답: {response.text}")
+            logger.error(f"Steam API 요청 실패 (status code: {response.status_code}) - 응답: {response.text}")
             return [], [], []
         
         data = response.json()
         
         if "response" not in data or "games" not in data["response"]:
-            logeer.warning(f"Steam API 응답 데이터 이상: {data}")
+            logger.warning(f"Steam API 응답 데이터 이상: {data}")
             return [], [], []
         
         
