@@ -4,7 +4,7 @@ from rest_framework.views import APIView
 from rest_framework import status
 from .models import User, UserPreferredGame, Game
 from .serializers import (CreateUserSerializer, UserUpdateSerializer,
-                          SteamSignupSerializer)
+                          SteamSignupSerializer, CustomTokenObtainPairSerializer)
 from rest_framework.permissions import AllowAny, IsAuthenticated, IsAdminUser
 from rest_framework import permissions
 from django.shortcuts import get_object_or_404
@@ -26,11 +26,15 @@ from django.core.mail import send_mail, EmailMultiAlternatives
 from django.utils.timezone import now
 import logging
 from django.db.utils import IntegrityError
+from rest_framework_simplejwt.views import TokenObtainPairView
+
 
 load_dotenv()
 STEAM_API_KEY = os.getenv("STEAM_API_KEY")
 logger = logging.getLogger(__name__)
 
+class CustomTokenObtainPairView(TokenObtainPairView):
+    serializer_class = CustomTokenObtainPairSerializer
 
 class SignupAPIView(APIView):
     """일반 사용자 회원가입 API"""
