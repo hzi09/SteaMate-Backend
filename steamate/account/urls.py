@@ -12,7 +12,7 @@ urlpatterns = [
     path("steamlogin/", views.SteamLoginAPIView.as_view()),
     path("steam-callback/", views.SteamCallbackAPIView.as_view()),
     path("logout/", views.LogoutAPIView.as_view()),
-    path('verify-email/<uidb64>/<token>/', views.EmailVerifyAPIView.as_view(), name='verify-email'),
+    path('verify-email/<str:uidb64>/<str:token>/', views.EmailVerifyAPIView.as_view(), name='verify-email'),
     # Steam ID 회원가입
     path("steamsignup/", views.SteamSignupAPIView.as_view()),
     # Steam ID 로그인

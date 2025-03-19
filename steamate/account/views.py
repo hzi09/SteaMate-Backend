@@ -22,7 +22,7 @@ from django.urls import reverse
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from django.utils.encoding import force_bytes, force_str
 from django.contrib.auth.tokens import default_token_generator
-from django.core.mail import send_mail
+from django.core.mail import send_mail, EmailMultiAlternatives
 from django.utils.timezone import now
 import logging
 from django.db.utils import IntegrityError
@@ -40,22 +40,26 @@ class SignupAPIView(APIView):
         serializer = CreateUserSerializer(data=request.data)
         if serializer.is_valid(raise_exception=True):
             user = serializer.save()
+            api_prefix = "/api/v1/account"
             
             # 이메일 인증 토큰 생성
             uid = urlsafe_base64_encode(force_bytes(user.pk))
             token = default_token_generator.make_token(user)
-            verification_url = request.build_absolute_uri(
-                reverse("account:verify-email", kwargs = {'uidb64': uid, 'token': token})
-            )
+            verification_url = f"{settings.SITE_URL}{reverse('account:verify-email', kwargs={'uidb64': uid, 'token': token}).replace(api_prefix, '')}"
             
             # 이메일 전송
-            send_mail(
-                subject="이메일 인증",
-                message=f"이메일 인증을 위해 다음 링크를 클릭해주세요: {verification_url}",
-                from_email=settings.EMAIL_HOST_USER,
-                recipient_list=[user.email],
-                fail_silently=False
-            )
+            
+            subject="이메일 인증"
+            text_content =f"이메일 인증을 위해 다음 링크를 클릭해주세요: {verification_url}"
+            html_content=f"""
+            <p>이메일 인증을 휘해 아래 링크를 클릭해주세요.</p>
+            <p><a href="{verification_url}" target="_blank">{verification_url}</a></p>
+            <p>감사합니다!</p>
+            """
+            
+            email = EmailMultiAlternatives(subject, text_content, settings.EMAIL_HOST_USER, [user.email])
+            email.attach_alternative(html_content, "text/html")
+            email.send()
             return Response({
                 "message":"회원가입 완료. 이메일을 확인하고 인증을 완료하세요.",
                 "email_verification_url":verification_url
