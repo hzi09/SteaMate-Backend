@@ -40,19 +40,18 @@ class SignupAPIView(APIView):
         serializer = CreateUserSerializer(data=request.data)
         if serializer.is_valid(raise_exception=True):
             user = serializer.save()
-            api_prefix = "/api/v1/account"
+            api_prefix = "/api/v1/account/"
             
             # 이메일 인증 토큰 생성
             uid = urlsafe_base64_encode(force_bytes(user.pk))
             token = default_token_generator.make_token(user)
-            verification_url = f"{settings.SITE_URL}{reverse('account:verify-email', kwargs={'uidb64': uid, 'token': token}).replace(api_prefix, '')}"
-            
+            verification_url = f"{settings.SITE_URL}/{reverse('account:verify-email', kwargs={'uidb64': uid, 'token': token}).replace(api_prefix, '')}"
             # 이메일 전송
             
             subject="이메일 인증"
             text_content =f"이메일 인증을 위해 다음 링크를 클릭해주세요: {verification_url}"
             html_content=f"""
-            <p>이메일 인증을 휘해 아래 링크를 클릭해주세요.</p>
+            <p>이메일 인증을 위해 아래 링크를 클릭해주세요.</p>
             <p><a href="{verification_url}" target="_blank">{verification_url}</a></p>
             <p>감사합니다!</p>
             """
@@ -77,26 +76,36 @@ class EmailVerifyAPIView(APIView):
             user = get_object_or_404(User, pk=uid)
             
             if user.is_verified:
-                return redirect('/?error=already-verified')
-                # return Response({"message": "이미 인증된 계정입니다."}, status=status.HTTP_200_OK)
+                # return redirect('/?error=already-verified')
+                return Response({"success":True,
+                                "message": "이미 인증된 계정입니다."
+                                }, status=status.HTTP_200_OK)
             
             if user.is_verification_expired():
                 user.delete()
-                return redirect('/?error=time-over')
-                # return Response({"error": "인증 시간이 만료되었습니다. 다시 회원가입해주세요."}, status=status.HTTP_400_BAD_REQUEST)
+                # return redirect('/?error=time-over')
+                return Response({"success": False, 
+                                "error": "인증 시간이 만료되었습니다. 다시 회원가입해주세요."
+                                }, status=status.HTTP_400_BAD_REQUEST)
             
             if default_token_generator.check_token(user, token):
                 user.is_verified = True
                 user.save()
-                return redirect('/')
-                # return Response({"message":"이메일 인증이 완료되었습니다."}, status=status.HTTP_200_OK)
+                # return redirect('/')
+                return Response({"success": True, 
+                                "message":"이메일 인증이 완료되었습니다."
+                                }, status=status.HTTP_200_OK)
             else:
-                return redirect('/?error=invalid-token')
-                # return Response({"error":"유효하지 않은 토큰입니다."}, status=status.HTTP_400_BAD_REQUEST)
+                # return redirect('/?error=invalid-token')
+                return Response({"success": False, 
+                                "error":"유효하지 않은 토큰입니다."
+                                }, status=status.HTTP_400_BAD_REQUEST)
 
         except (TypeError, ValueError, OverflowError, User.DoesNotExist):
-            return redirect('/?error=bad-request')
-            # return Response({"error":"잘못된 요청입니다."}, status=status.HTTP_400_BAD_REQUEST)
+            # return redirect('/?error=bad-request')
+            return Response({"success": False,
+                            "error":"잘못된 요청입니다."
+                            }, status=status.HTTP_400_BAD_REQUEST)
 
 class SteamLoginAPIView(APIView):
     """Steam OpenID 로그인 요청"""
