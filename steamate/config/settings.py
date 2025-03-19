@@ -30,11 +30,11 @@ SITE_URL = os.getenv("SITE_URL", "http://localhost:3000")
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
-ALLOWED_HOSTS = ["52.79.104.109","steamate","localhost", "127.0.0.1","steamate-front.vercel.app"]
+ALLOWED_HOSTS = ["52.79.104.109","steamate.co.kr","api.steamate.co.kr","localhost", "127.0.0.1","steamate-front.vercel.app"]
 
-CSRF_TRUSTED_ORIGINS = ["http://52.79.104.109", "http://localhost", "http://steamate","https://steamate-front.vercel.app"]
+CSRF_TRUSTED_ORIGINS = ["https://steamate.co.kr","https://api.steamate.co.kr","http://52.79.104.109", "http://localhost", "http://steamate","https://steamate-front.vercel.app"]
 
 # Application definition
 
@@ -70,10 +70,20 @@ MIDDLEWARE = [
 
 CORS_ALLOWED_ORIGINS = [
     'http://localhost:3000',
-    'http://52.79.104.109'  # React 앱의 주소
+    'http://52.79.104.109',
+    'https://www.steamate.co.kr',
+    'https://steamate.co.kr',
+    'https://api.steamate.co.kr',  
 ]
 
-CORS_ALLOW_CREDENTIALS = True
+
+
+# CORS_ALLOW_CREDENTIALS = True
+
+CORS_ALLOW_HEADERS = ["*"]
+
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
 
 ROOT_URLCONF = 'config.urls'
 
@@ -208,6 +218,6 @@ if not EMAIL_HOST_PASSWORD:
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = "smtp.gmail.com"
 EMAIL_PORT = 587
-EMAIL_USE_TLS = True
-EMAIL_USE_SSL = False  # TLS를 사용할 경우 False로 설정
+EMAIL_USE_TLS = False
+EMAIL_USE_SSL = True  # TLS를 사용할 경우 False로 설정
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER  # 기본 발신 이메일 주소
