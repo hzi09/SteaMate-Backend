@@ -40,19 +40,18 @@ class SignupAPIView(APIView):
         serializer = CreateUserSerializer(data=request.data)
         if serializer.is_valid(raise_exception=True):
             user = serializer.save()
-            api_prefix = "/api/v1/account"
+            api_prefix = "/api/v1/account/"
             
             # 이메일 인증 토큰 생성
             uid = urlsafe_base64_encode(force_bytes(user.pk))
             token = default_token_generator.make_token(user)
-            verification_url = f"{settings.SITE_URL}{reverse('account:verify-email', kwargs={'uidb64': uid, 'token': token}).replace(api_prefix, '')}"
-            
+            verification_url = f"{settings.SITE_URL}/{reverse('account:verify-email', kwargs={'uidb64': uid, 'token': token}).replace(api_prefix, '')}"
             # 이메일 전송
             
             subject="이메일 인증"
             text_content =f"이메일 인증을 위해 다음 링크를 클릭해주세요: {verification_url}"
             html_content=f"""
-            <p>이메일 인증을 휘해 아래 링크를 클릭해주세요.</p>
+            <p>이메일 인증을 위해 아래 링크를 클릭해주세요.</p>
             <p><a href="{verification_url}" target="_blank">{verification_url}</a></p>
             <p>감사합니다!</p>
             """
