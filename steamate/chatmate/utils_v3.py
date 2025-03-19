@@ -20,6 +20,7 @@ load_dotenv()
 
 # API 키 환경변수에서 가져오기
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+# DEEPSEEK_API_KEY = os.getenv('DEEPSEEK_API_KEY')
 
 # PostgreSQL 연결 문자열 (환경 변수에서 가져오거나 직접 설정)
 CONNECTION_STRING = os.getenv('DATABASE_URL')  # 예: "postgresql://user:password@localhost:5432/dbname"
@@ -210,36 +211,35 @@ def generate_pseudo_document(user_input, chat, genre, game):
     """Query2doc/HyDE approach to generate a pseudo document."""
     pseudo_doc_prompt = ChatPromptTemplate.from_messages([
         ("system", """
-        Generate a concise game description focusing primarily on searchable key elements. If available, consider user preferences as secondary factors.
-
-        User Preferences (for reference only, may be limited or not available):
-        - Preferred Genres: {genre}
-        - Favorite Games: {game}
+        당신은 게임 특성 분석 전문가입니다. 사용자의 취향과 요구사항을 분석하여 게임 특성 목록을 생성해야 합니다.
         
-        Extract and expand on these aspects, with priority on general game elements:
-        1. Player Experience
-        - Number of players (e.g., "single-player", "4-player co-op")
-        - Play style (e.g., "casual", "competitive", "story-driven")
-        - If user has favorite games and they are relevant, consider similarities
+        사용자는 직접적으로 게임 추천을 요청할 수 있지만, 당신의 임무는 게임 제목을 추천하는 것이 아니라 
+        사용자가 원하는 게임의 특성을 키워드 목록으로 분석하는 것입니다.
         
-        2. Core Elements
-        - Main genres (include diverse options, not just user preferences)
-        - Key gameplay mechanics
-        - Primary features and selling points
+        1. 사용자 입력 해석 방법:
+        - "게임 추천해줘", "~한 게임 찾아줘" 등의 직접적인 추천 요청 → 사용자의 취향과 정보를 기반으로 원하는 게임 특성 추출
+        - 특정 게임과 유사한 게임 요청 → 언급된 게임의 주요 특성 추출 (실제 게임 이름 제외)
+        - 특정 장르나 기능 요청 → 해당 장르/기능의 핵심 특성 추출
         
-        3. Technical Elements
-        - Game type (e.g., "Action RPG", "First-person shooter")
-        - Gameplay mode (e.g., "online multiplayer", "local co-op")
-        - If applicable, mention elements common with user's preferred games
+        2. 사용자 선호도 (참고용):
+        - 선호 장르: {genre}
+        - 좋아하는 게임: {game}
         
-        Format: Use short, keyword-rich phrases separated by commas
-        Example: "4-player co-op, horror game, puzzle solving, team-based gameplay, atmospheric"
+        3. 다음 측면을 고려하여 키워드를 추출하세요:
+        - 플레이어 경험 (인원수, 플레이 스타일)
+        - 장르 및 하위 장르
+        - 게임플레이 메카닉
+        - 게임 분위기 및 스토리 요소
+        - 게임 모드 및 기술적 특성
         
-        Notes: 
-        - Focus primarily on creating a comprehensive game description
-        - User preferences should be used as additional context, not the main focus
-        - Only reference user preferences if they are relevant to the query
-        - Maintain balance between general game elements and user preferences
+        출력 형식:
+        - 쉼표로 구분된 15개 이내의 간결한 키워드 목록만 작성
+        - 예시: "싱글플레이어, 액션RPG, 오픈월드, 스토리중심, 탐험요소, 레벨링시스템, 제작시스템"
+        
+        주의사항:
+        - 절대 실제 게임 이름이나 제목을 포함하지 마세요
+        - 직접적인 게임 추천이나 설명을 제공하지 마세요
+        - 키워드만 나열하고 문장이나 설명은 포함하지 마세요
         """),
         ("human", "{input}")
     ])
@@ -251,14 +251,30 @@ def decompose_query(pseudo_doc, chat):
     """Decompose the pseudo document into sub-queries."""
     decompose_prompt = ChatPromptTemplate.from_messages([
         ("system", """
-        Break down the given game description document into specific sub-queries.
-        Consider aspects such as:
-        - Genre-related question
-        - Gameplay mechanics question
-        - Story/atmosphere question
-        - Difficulty/accessibility question
-        """),
-        ("human", "{input}")
+        당신은 가상의 게임 특성 키워드 목록을 검색 질의어로 변환하는 전문가입니다.
+        제공된 키워드 목록을 분석하여 게임 데이터베이스 검색에 최적화된 4개의 검색 질의어를 생성해야 합니다.
+
+        키워드 목록에 있는 정보만 사용하여 다음 카테고리별로 하나씩 검색 질의어를 만드세요:
+        1. 장르 검색 - "action RPG games" 또는 "strategy multiplayer games"와 같이 장르 키워드를 활용한 검색 질의어
+        2. 게임플레이 메카닉 검색 - "crafting survival games" 또는 "open world exploration"과 같이 핵심 메카닉 키워드를 활용한 검색 질의어
+        3. 분위기/테마 검색 - "dark fantasy atmosphere" 또는 "sci-fi space setting"과 같이 분위기나 테마 키워드를 활용한 검색 질의어
+        4. 플레이어 경험 검색 - "challenging roguelike games" 또는 "cooperative multiplayer experience"와 같이 난이도나 플레이어 경험 키워드를 활용한 검색 질의어
+        5. 종합 검색 - 위의 카테고리에서 가장 중요한 3-4개의 핵심 키워드를 조합하여 문서의 핵심을 포착하는 종합적인 검색 질의어
+
+        검색 최적화 규칙:
+        - 각 질의어는 키워드 목록에서 관련된 2-3개의 핵심 용어를 조합하세요
+        - 종합 검색은 가장 중요한 3-4개의 핵심 키워드를 조합하세요
+        - 모든 검색어는 "games with" 또는 "games featuring"로 시작하세요
+        - 키워드 목록에 없는 용어는 사용하지 마세요
+        
+        형식 지침:
+        - 영어로 작성하세요
+        - 정확히 5개의 검색 질의어만 생성하세요
+        - 번호를 붙여 목록 형식으로 작성하세요 (1. 검색어 1, 2. 검색어 2 등)
+        - 각 줄에는 하나의 검색 질의어만 포함하세요
+        - 모든 검색어는 키워드 목록의 내용과 직접 관련이 있어야 합니다
+        - 소개나 설명을 포함하지 마세요
+        """)
     ])
     
     decompose_chain = decompose_prompt | chat | str_outputparser
@@ -267,15 +283,14 @@ def decompose_query(pseudo_doc, chat):
 def chatbot_call(user_input, session_id, genre, game, appid):
     # 1. Generate pseudo document
     pseudo_doc = generate_pseudo_document(user_input, chat, genre, game)
-    
     # 2. Decompose the generated pseudo document into sub-queries
     sub_queries = decompose_query(pseudo_doc, chat)
-    
     # 3. Perform search for each sub-query
     all_contexts = []
     
     # 검색 파라미터 설정
     retriever = vector_store.as_retriever(search_kwargs={"k": 3, "filter": {"appid": {"$nin": appid}}})
+    # retriever = vector_store.as_retriever(search_kwargs={"k": 3})
     
     # Search based on sub-queries
     for sub_query in sub_queries:
@@ -295,5 +310,4 @@ def chatbot_call(user_input, session_id, genre, game, appid):
         },
         config={"configurable": {"session_id": session_id}}
     )
-    print(context)
     return answer
