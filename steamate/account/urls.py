@@ -6,7 +6,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 app_name = "account"
 urlpatterns = [
     path('signup/', views.SignupAPIView.as_view()),
-    path("login/", TokenObtainPairView.as_view()),
+    path("login/", views.CustomTokenObtainPairView.as_view()),
     path("refresh/", TokenRefreshView.as_view()),
     path('<int:pk>/', views.MyPageAPIView.as_view()),
     path("steamlogin/", views.SteamLoginAPIView.as_view()),

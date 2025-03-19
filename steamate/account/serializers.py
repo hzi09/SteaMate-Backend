@@ -1,5 +1,31 @@
 from rest_framework import serializers
 from .models import User, Genre, Game
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from rest_framework.exceptions import AuthenticationFailed
+from django.contrib.auth import authenticate
+
+class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+    def validate(self, attrs):
+        username = attrs.get("username")
+        password = attrs.get("password")
+        
+        # 먼저 유저가 존재하는지 확인
+        try:
+            user = User.objects.get(username=username)
+        except User.DoesNotExist:
+            raise AuthenticationFailed("아이디 혹은 비밀번호가 잘못되었습니다.", code="invalid_credentials")
+
+        # 이메일 인증 여부 확인
+        if not user.is_verified:
+            raise AuthenticationFailed("이메일 인증이 필요합니다.", code="email_not_verified")
+
+        # 유저가 존재하면 authenticate() 실행
+        user = authenticate(username=username, password=password)
+        if not user:
+            raise AuthenticationFailed("아이디 혹은 비밀번호가 잘못되었습니다.", code="invalid_credentials")
+
+        return super().validate(attrs)
+
 
 class CreateUserSerializer(serializers.ModelSerializer):
     confirm_password = serializers.CharField(write_only = True, required=True)

@@ -30,7 +30,7 @@ SITE_URL = os.getenv("SITE_URL", "http://localhost:3000")
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True
 
 ALLOWED_HOSTS = ["52.79.104.109","steamate.co.kr","api.steamate.co.kr","localhost", "127.0.0.1","steamate-front.vercel.app"]
 
@@ -208,6 +208,6 @@ if not EMAIL_HOST_PASSWORD:
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = "smtp.gmail.com"
 EMAIL_PORT = 587
-EMAIL_USE_TLS = False
-EMAIL_USE_SSL = True  # TLS를 사용할 경우 False로 설정
+EMAIL_USE_TLS = True
+EMAIL_USE_SSL = False  # TLS를 사용할 경우 False로 설정
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER  # 기본 발신 이메일 주소
