@@ -285,11 +285,6 @@ def chatbot_call(user_input, session_id, genre, game, appid):
     sub_queries = decompose_query(pseudo_doc, chat)
     # 3. Perform search for each sub-query
     all_contexts = []
-    print("--------------------------------")
-    print(pseudo_doc)
-    print("--------------------------------")
-    print(sub_queries)
-    print("--------------------------------")
     
     # 검색 파라미터 설정
     retriever = vector_store.as_retriever(search_kwargs={"k": 3, "filter": {"appid": {"$nin": appid}}})
