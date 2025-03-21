@@ -26,7 +26,7 @@ OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 CONNECTION_STRING = os.getenv('DATABASE_URL')  # 예: "postgresql://user:password@localhost:5432/dbname"
 
 # 챗봇 모델 설정
-chat = ChatOpenAI(model="gpt-4o-mini", api_key=OPENAI_API_KEY, temperature=0.7)
+chat = ChatOpenAI(model="gpt-4o-mini", api_key=OPENAI_API_KEY, temperature=0.5)
 
 # 임베딩 모델 설정
 embeddings = OpenAIEmbeddings(
@@ -45,7 +45,7 @@ prompt = ChatPromptTemplate.from_messages([
 
         1. 가장 중요한 규칙:
         - 반드시 아래 '추천 가능 게임 목록'에 포함된 게임만 추천해야 합니다
-        - '추천 가능 게임 목록' 중에 이전 답변에서 추천한 게임이 있으면 절대 언급하지 마세요
+        - 게임과 관련 없는 대화는 절대 하지 마세요
         - 목록에 없는 게임은 절대 언급하지 마세요
         
         2. 사용자 정보:
@@ -73,7 +73,6 @@ prompt = ChatPromptTemplate.from_messages([
         - 추천 이유 및 설명
         
         주의: 반드시 위 '추천 가능 게임 목록'에 없는 게임을 언급하지 마세요.
-        주의: 반드시 이전에 추천한 게임을 언급하지 마세요.
         """,
     ),
     ("human", "{input}"),
@@ -227,16 +226,15 @@ def generate_pseudo_document(user_input, chat, genre, game):
         - 좋아하는 게임: {game}
         
         3. 다음 측면을 고려하여 키워드를 추출하세요:
-        - 플레이어 경험 (플레이 스타일, 인기도)
-        - 장르 및 태그
-        - 게임 분위기 및 스토리 요소
-        - 게임 모드 및 기술적 특성
-        
+        - 게임의 핵심적인 특징
+        - 게임의 그래픽 스타일
+        - 게임의 플레이 방식
+        - 사용자 선호도
+
         출력 형식:
         - 쉼표로 구분된 15개 이내의 간결한 키워드 목록을 영어로만 작성
         
         주의사항:
-        - 절대 실제 게임 이름이나 제목을 포함하지 마세요
         - 직접적인 게임 추천이나 설명을 제공하지 마세요
         - 키워드만 나열하고 문장이나 설명은 포함하지 마세요
         """),
@@ -250,33 +248,24 @@ def decompose_query(pseudo_doc, chat):
     """Decompose the pseudo document into sub-queries."""
     decompose_prompt = ChatPromptTemplate.from_messages([
         ("system", """
-        당신은 가상의 게임 특성 키워드 목록을 검색 질의어로 변환하는 전문가입니다.
-        제공된 키워드 목록을 분석하여 게임 벡터 데이터베이스 검색에 최적화된 4개의 검색 질의어를 생성해야 합니다.
+        주어진 게임 특성 키워드 목록을 분석하여 효과적인 검색 질의어를 생성하세요.
 
-        키워드 목록에 있는 정보만 사용하여 다음 카테고리별로 하나씩 검색 질의어를 만드세요:
-        1. 장르 및 태그 검색 - 장르 키워드를 활용한 검색 질의어
-        2. 플레이 방식 검색 - 플레이 방식 키워드를 활용한 검색 질의어
-        3. 분위기/테마 검색 - 분위기나 테마 키워드를 활용한 검색 질의어
-        4. 플레이어 경험 검색 - 난이도나 플레이어 경험, 평가 키워드를 활용한 검색 질의어
-        5. 종합 검색 - 위의 카테고리에서 가장 중요한 5-6개의 핵심 키워드를 조합하여 문서의 핵심을 포착하는 종합적인 검색 질의어
+        키워드 목록: {input}    
 
-        검색 최적화 규칙:
-        - 각 질의어는 키워드 목록에서 관련된 4~5개의 핵심 용어를 조합하세요
-        - 종합 검색은 가장 중요한 5~6개의 핵심 키워드를 조합하세요
-        - 모든 검색어는 "games with" 또는 "games featuring"로 시작하세요
-        - 키워드 목록에 없는 용어는 사용하지 마세요
+        고려할 수 있는 측면들:
+        - 게임의 핵심적인 특징
+        - 게임의 그래픽 스타일
+        - 게임의 플레이 방식
         
-        형식 지침: 
-        - 정확히 5개의 검색 질의어만 생성하세요
-        - 번호를 붙여 목록 형식으로 작성하세요 (1. 검색어 1, 2. 검색어 2 등)
-        - 각 줄에는 하나의 검색 질의어만 포함하세요
-        - 모든 검색어는 키워드 목록의 내용과 직접 관련이 있어야 합니다
-        - 소개나 설명을 포함하지 마세요
+        가이드라인:
+        - 2개의 의미 있는 검색 질의어를 생성하세요
+        - 키워드들을 자연스럽게 조합하여 사용하세요
+        - 각 줄에 하나의 검색 질의어만 작성하세요
         """)
     ])
     
     decompose_chain = decompose_prompt | chat | str_outputparser
-    return decompose_chain.invoke({"input": pseudo_doc}).split('\n')
+    return [q.strip() for q in decompose_chain.invoke({"input": pseudo_doc}).split('\n') if q.strip()]
 
 def chatbot_call(user_input, session_id, genre, game, appid):
     # 1. Generate pseudo document
@@ -287,7 +276,7 @@ def chatbot_call(user_input, session_id, genre, game, appid):
     all_contexts = []
     
     # 검색 파라미터 설정
-    retriever = vector_store.as_retriever(search_kwargs={"k": 3, "filter": {"appid": {"$nin": appid}}})
+    retriever = vector_store.as_retriever(search_kwargs={"k": 8, "filter": {"appid": {"$nin": appid}}})
     # retriever = vector_store.as_retriever(search_kwargs={"k": 3})
     
     # Search based on sub-queries
