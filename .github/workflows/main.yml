@@ -49,10 +49,5 @@ jobs:
 
       - name: Deploy via SSH
         run: |
-          ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
-            cd /home/ubuntu/your_project_directory/
-            git pull origin main
-            docker compose -f docker-compose.yml down
-            docker compose -f docker-compose.yml up --build -d
-          EOF
+          ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "cd /home/ubuntu/your_project_directory && git pull origin main && docker compose -f docker-compose.yml down && docker compose -f docker-compose.yml up --build -d"
 
