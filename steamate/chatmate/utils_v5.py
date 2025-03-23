@@ -206,7 +206,7 @@ chain_with_history = RunnableWithMessageHistory(
     history_messages_key="chat_history",
 )
 
-def generate_pseudo_document(user_input, chat, genre, game):
+def generate_pseudo_document(user_input, chat, genre, game, chat_history):
     """Query2doc/HyDE approach to generate a pseudo document."""
     pseudo_doc_prompt = ChatPromptTemplate.from_messages([
         ("system", """
@@ -214,6 +214,9 @@ def generate_pseudo_document(user_input, chat, genre, game):
         
         사용자는 직접적으로 게임 추천을 요청할 수 있지만, 당신의 임무는 게임 제목을 추천하는 것이 아니라 
         사용자가 원하는 게임의 특성을 키워드 목록으로 분석하는 것입니다.
+        
+        이전 대화 내역:
+        {chat_history}
         
         1. 사용자 입력 해석 방법:
         - "게임 추천해줘", "~한 게임 찾아줘" 등의 직접적인 추천 요청 → 사용자의 취향과 정보를 기반으로 원하는 게임 특성 추출
@@ -241,7 +244,7 @@ def generate_pseudo_document(user_input, chat, genre, game):
     ])
     
     pseudo_doc_chain = pseudo_doc_prompt | chat | str_outputparser
-    return pseudo_doc_chain.invoke({"input": user_input, "genre": genre, "game": game})
+    return pseudo_doc_chain.invoke({"input": user_input, "genre": genre, "game": game, "chat_history": chat_history})
 
 def decompose_query(pseudo_doc, chat):
     """Decompose the pseudo document into sub-queries."""
@@ -267,11 +270,13 @@ def decompose_query(pseudo_doc, chat):
     return [q.strip() for q in decompose_chain.invoke({"input": pseudo_doc}).split('\n') if q.strip()]
 
 def chatbot_call(user_input, session_id, genre, game, appid):
-    # 1. Generate pseudo document
-    pseudo_doc = generate_pseudo_document(user_input, chat, genre, game)
-    # 2. Decompose the generated pseudo document into sub-queries
+    # 1. Get chat history
+    chat_history = get_session_history(session_id)
+    # 2. Generate pseudo document
+    pseudo_doc = generate_pseudo_document(user_input, chat, genre, game, chat_history)
+    # 3. Decompose the generated pseudo document into sub-queries
     sub_queries = decompose_query(pseudo_doc, chat)
-    # 3. Perform search for each sub-query
+    # 4. Perform search for each sub-query
     all_contexts = []
     
     # 검색 파라미터 설정
