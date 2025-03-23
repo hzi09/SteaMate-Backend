@@ -28,6 +28,7 @@ jobs:
       - name: Run Django tests
         run: |
           python manage.py test
+        working-directory: steamate
 
   deploy:
     needs: test  # 테스트 성공해야만 실행됨!
