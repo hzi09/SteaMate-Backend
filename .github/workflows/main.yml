@@ -21,7 +21,7 @@ jobs:
           python-version: '3.12'
       
       - name: Create .env file
-        run: echo "${{ secrets.ENV_FILE }}" > .env
+        run: echo "${{ secrets.ENV_FILE }}" > steamate/.env
       
       - name: Install dependencies
         run: |
