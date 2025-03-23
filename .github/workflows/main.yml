@@ -20,14 +20,6 @@ jobs:
         with:
           python-version: '3.12'
       
-      - name: Check EC2_HOST is set
-        run: |
-          if [ -z "${{ secrets.EC2_HOST }}" ]; then
-          echo "❌ EC2_HOST is EMPTY!"
-          exit 1
-          else
-            echo "✅ EC2_HOST is present (but masked)"
-          fi
       - name: Create .env file
         run: echo "${{ secrets.ENV_FILE }}" > steamate/.env
       
@@ -63,6 +55,11 @@ jobs:
           else
           echo "✅ EC2_HOST is present (but masked)"
           fi
+
+      - name: Try ssh-keyscan
+        run: |
+          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
+
       - name: Setup SSH key
         run: |
           echo "${{ secrets.EC2_KEY }}" > ~/.ssh/id_rsa
