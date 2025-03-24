@@ -51,7 +51,10 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt.token_blacklist',
     'social_django',
     'corsheaders',
+    'channels',
+    'channels_redis',
     
+
     #Local apps
     'account',
     'chatmate',
@@ -70,10 +73,50 @@ MIDDLEWARE = [
 
 CORS_ALLOWED_ORIGINS = [
     'http://localhost:3000',
-    'http://52.79.104.109'  # React 앱의 주소
+    'http://52.79.104.109',
+    'https://steamate.co.kr',
+    'https://api.steamate.co.kr',
+    'https://steamate-front.vercel.app',
+    'ws://localhost:8000',
+    'wss://localhost:8000'
 ]
 
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r"^ws://.*",
+    r"^wss://.*"
+]
+
+# 웹소켓을 위한 추가 설정
+CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_ALL_HEADERS = True
+CORS_ALLOW_METHODS = [
+    'DELETE',
+    'GET',
+    'OPTIONS',
+    'PATCH',
+    'POST',
+    'PUT',
+]
+
+# 웹소켓 관련 CORS 설정
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+    'connection',
+    'upgrade',
+    'sec-websocket-key',
+    'sec-websocket-version',
+    'sec-websocket-extensions',
+    'sec-websocket-protocol'
+]
 
 ROOT_URLCONF = 'config.urls'
 
@@ -212,6 +255,11 @@ if not EMAIL_HOST_PASSWORD:
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = "smtp.gmail.com"
 EMAIL_PORT = 587
+
+# Channels 설정
+ASGI_APPLICATION = 'config.asgi.application'
+
 EMAIL_USE_TLS = True
 EMAIL_USE_SSL = False  # TLS를 사용할 경우 False로 설정
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER  # 기본 발신 이메일 주소
+
