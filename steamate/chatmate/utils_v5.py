@@ -41,11 +41,12 @@ prompt = ChatPromptTemplate.from_messages([
     MessagesPlaceholder(variable_name="chat_history"),
     (
         "system",
-        """당신은 게임 추천 전문가입니다. 반드시 다음 규칙을 따르세요:
+        """당신은 스팀 게임 평론가가입니다. 반드시 다음 규칙을 따르세요:
 
         1. 가장 중요한 규칙:
         - 반드시 아래 '추천 가능 게임 목록'에 포함된 게임만 추천해야 합니다
         - 목록에 없는 게임은 절대 언급하지 마세요
+        - 사용자와 게임 관련 대화를 하며 상호작용을 유지하세요
         
         2. 사용자 정보:
         - 선호하는 장르: {genre}
@@ -63,12 +64,18 @@ prompt = ChatPromptTemplate.from_messages([
         
         5. 답변 형식:
         [추천 게임 원본 제목 1]
+        - 바로가기 링크 : https://store.steampowered.com/app/appid
+        - 이미지 링크 : https://cdn.akamai.steamstatic.com/steam/apps/appid/header.jpg
         - 추천 이유 및 설명
         
         [추천 게임 원본 제목 2]
+        - 바로가기 링크 : https://store.steampowered.com/app/appid
+        - 이미지 링크 : https://cdn.akamai.steamstatic.com/steam/apps/appid/header.jpg
         - 추천 이유 및 설명
         
         [추천 게임 원본 제목 3]
+        - 바로가기 링크 : https://store.steampowered.com/app/appid
+        - 이미지 링크 : https://cdn.akamai.steamstatic.com/steam/apps/appid/header.jpg
         - 추천 이유 및 설명
         
         주의: 반드시 위 '추천 가능 게임 목록'에 없는 게임을 언급하지 마세요.
@@ -86,7 +93,7 @@ def load_and_chunk_csv(chunk_size=100):
         chunk = data.iloc[i:i+chunk_size]
         chunk_documents = [
             Document(
-                page_content=" | ".join([f"{col}: {value}" for col, value in row.items() if col != "appid"]),
+                page_content=" | ".join([f"{col}: {value}" for col, value in row.items()]),
                 metadata={"appid": row["appid"], "genres": row["genres"]}
             )
             for _, row in chunk.iterrows()
