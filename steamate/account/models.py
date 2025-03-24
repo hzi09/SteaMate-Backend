@@ -44,6 +44,10 @@ class User(AbstractUser):
     preferred_game = models.ManyToManyField(Game, through='UserPreferredGame', related_name='users_preferred_game', blank = True)
     is_verified = models.BooleanField(default=False)
     verification_expires_at = models.DateTimeField(default=now)
+    # steam 관련 정보 추가
+    steam_name = models.CharField(max_length=50, blank=True, null=True)
+    steam_profile_url = models.URLField(blank=True, null=True)
+    steam_avatar = models.URLField(blank=True, null=True)
     
     def __str__(self):
         return self.username
