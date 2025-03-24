@@ -378,8 +378,8 @@ class GetSteamLibraryAPIView(APIView):
     permission_classes = [IsAuthenticated]
     
     def post(self, request):
-        error_message = fetch_and_save_user_games.delay(request.user.id)
-        if error_message:
+        result = fetch_and_save_user_games.delay(request.user.id)
+        if result.status == "error":
             return Response({"message":"Steam 라이브러리 연동 실패. 공개 설정을 모두 공개로 해주세요."}, status=status.HTTP_400_BAD_REQUEST)
         
         return Response({"message":"Steam 라이브러리 연동 완료"}, status=status.HTTP_201_CREATED)
