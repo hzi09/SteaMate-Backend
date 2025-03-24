@@ -125,18 +125,18 @@ def initialize_vectorstore():
             use_jsonb=True
         )
         # 우선 모든에러처리
+    
+    
+        # 데이터 비어있는지 확인
+        sample = vector_store.similarity_search("test", k=1)
+        if not sample:
+            print("PGVector 벡터 DB가 비어 있습니다. 데이터를 생성합니다.")
+            data = load_and_chunk_csv()
+            vector_store = create_vectorstore_from_chunks(data)
+        else:
+            print("기존 PGVector 벡터 DB를 로드했습니다.")
     except Exception as e: 
         print(f"벡터 db 초기화 중 오류 :: {e}")
-    
-    # 데이터 비어있는지 확인
-    sample = vector_store.similarity_search("test", k=1)
-    if not sample:
-        print("PGVector 벡터 DB가 비어 있습니다. 데이터를 생성합니다.")
-        data = load_and_chunk_csv()
-        vector_store = create_vectorstore_from_chunks(data)
-    else:
-        print("기존 PGVector 벡터 DB를 로드했습니다.")
-    
     return vector_store
 # 벡터 스토어 초기화
 vector_store = initialize_vectorstore()
