@@ -77,8 +77,11 @@ CORS_ALLOWED_ORIGINS = [
     'https://steamate.co.kr',
     'https://api.steamate.co.kr',
     'https://steamate-front.vercel.app',
+    'https:www.steamate.co.kr',
     'ws://localhost:8000',
-    'wss://localhost:8000'
+    'wss://localhost:8000',
+    'ws://api.steamate.co.kr:8001',
+    'wss://api.steamate.co.kr:8001',
 ]
 
 CORS_ALLOWED_ORIGIN_REGEXES = [

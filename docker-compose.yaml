@@ -19,8 +19,8 @@ services:
       - steamate-network
   asgi-server:
     build:
-      context: ./steamate
-    dockerfile: Dockerfile.asgi
+      context: .
+      dockerfile: steamate/Dockerfile.asgi
     ports:
       - "8001:8001"
     networks:
