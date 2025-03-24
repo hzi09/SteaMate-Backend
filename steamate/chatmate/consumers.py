@@ -48,6 +48,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
             }))
             return
             
+        # 메시지 수정 처리
+        if data.get('type') == 'message_modify':
+            await self.message_modify(text_data)
+            return
+            
         # 일반 메시지 처리
         if 'message' in data:
             user_message = data['message']
@@ -61,36 +66,35 @@ class ChatConsumer(AsyncWebsocketConsumer):
             try:
                 # 메시지 유효성 검사
                 serializer = ChatMessageSerializer(data={'user_message': user_message})
-                await database_sync_to_async(serializer.is_valid)(raise_exception=True)
+                if serializer.is_valid(raise_exception=True):
                 
-                # 세션 정보 가져오기
-                genre = await database_sync_to_async(lambda: [genre.genre_name for genre in self.user.preferred_genre.all()])()
-                # 선호 게임 정보 가져오기(appid, game_title)
-                preferred_games = await database_sync_to_async(lambda: self.user.preferred_game.all())()
-                appid = await database_sync_to_async(lambda: [game.appid for game in preferred_games])()
-                game = await database_sync_to_async(lambda: [game.title for game in preferred_games])()
-                
-                # 스트리밍 응답 처리
-                aggregated_response = ""
-                async for chunk in get_chatbot_message(user_message, self.session_id, genre, game, appid):
-                    aggregated_response += chunk
-                    # 각 청크마다 스트리밍 응답 전송
+                    genre = await database_sync_to_async(lambda: [genre.genre_name for genre in self.user.preferred_genre.all()])()
+                    # 선호 게임 정보 가져오기(appid, game_title)
+                    preferred_games = await database_sync_to_async(lambda: self.user.preferred_game.all())()
+                    appid = await database_sync_to_async(lambda: [game.appid for game in preferred_games])()
+                    game = await database_sync_to_async(lambda: [game.title for game in preferred_games])()
+                    
+                    # 스트리밍 응답 처리
+                    aggregated_response = ""
+                    async for chunk in get_chatbot_message(user_message, self.session_id, genre, game, appid):
+                        aggregated_response += chunk
+                        # 각 청크마다 스트리밍 응답 전송
+                        await self.send(text_data=json.dumps({
+                            'response': aggregated_response,
+                            'is_streaming': True
+                        }))
+                    
+                    # 최종 응답 전송 및 DB 저장
                     await self.send(text_data=json.dumps({
                         'response': aggregated_response,
-                        'is_streaming': True
+                        'is_streaming': False
                     }))
-                
-                # 최종 응답 전송 및 DB 저장
-                await self.send(text_data=json.dumps({
-                    'response': aggregated_response,
-                    'is_streaming': False
-                }))
-                
-                # DB에 메시지 저장
-                await database_sync_to_async(serializer.save)(
-                    session_id=self.session,
-                    chatbot_message=aggregated_response
-                )
+                    
+                    # DB에 메시지 저장
+                    await database_sync_to_async(serializer.save)(
+                        session_id=self.session,
+                        chatbot_message=aggregated_response
+                    )
                 
             except Exception as e:
                 # 오류 처리
@@ -98,6 +102,63 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     'status': 'error',
                     'message': f'메시지 처리 중 오류가 발생했습니다: {str(e)}'
                 }))
+        
+    async def message_modify(self, text_data):
+        """메시지 수정 시 호출되는 메서드"""
+        data = json.loads(text_data)
+        message_id = data['message_id']
+        new_message = data['new_message']
+        
+        try:
+            # 처리 시작 알림
+            await self.send(text_data=json.dumps({
+                'status': 'processing',
+                'message': '메시지 수정 중입니다.'
+            }))
+            
+            # DB에서 메시지 가져오기
+            message = await database_sync_to_async(get_object_or_404)(ChatMessage, pk=message_id)
+            
+            # 이전 메시지 히스토리에서 삭제
+            if message.user_message:
+                await database_sync_to_async(delete_messages_from_history)(self.session_id, message.user_message)
+            
+            # 메시지 유효성 검사
+            serializer = ChatMessageSerializer(message, data={'user_message': new_message})
+            if serializer.is_valid(raise_exception=True):
+                
+                # 사용자 정보 가져오기
+                genre = await database_sync_to_async(lambda: [genre.genre_name for genre in self.user.preferred_genre.all()])()
+                preferred_games = await database_sync_to_async(lambda: self.user.preferred_game.all())()
+                appid = await database_sync_to_async(lambda: [game.appid for game in preferred_games])()
+                game = await database_sync_to_async(lambda: [game.title for game in preferred_games])()
+                
+                # 새로운 챗봇 응답 생성 및 스트리밍
+                aggregated_response = ""
+                async for chunk in get_chatbot_message(new_message, self.session_id, genre, game, appid):
+                    aggregated_response += chunk
+                    await self.send(text_data=json.dumps({
+                        'response': aggregated_response,
+                        'is_streaming': True
+                    }))
+                
+                # 최종 응답 전송
+                await self.send(text_data=json.dumps({
+                    'response': aggregated_response,
+                    'is_streaming': False
+                }))
+                
+                # DB 업데이트
+                await database_sync_to_async(serializer.save)(
+                    session_id=self.session,
+                    chatbot_message=aggregated_response
+                )
+            
+        except Exception as e:
+            await self.send(text_data=json.dumps({
+                'status': 'error',
+                'message': f'메시지 수정 중 오류가 발생했습니다: {str(e)}'
+            }))
     
     async def disconnect(self, close_code):
         """웹소켓 연결 종료 시 호출되는 메서드"""

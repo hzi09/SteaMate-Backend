@@ -4,6 +4,7 @@ from django.contrib.auth import get_user_model
 from channels.middleware import BaseMiddleware
 from channels.db import database_sync_to_async
 from django.contrib.auth.models import AnonymousUser
+from urllib.parse import parse_qs
 
 User = get_user_model()
 
@@ -37,17 +38,11 @@ class JWTAuthMiddleware(BaseMiddleware):
         headers = dict(scope['headers'])
         
         # 쿼리 파라미터에서 토큰 추출 시도
-        query_string = scope.get('query_string', b'').decode()
-        query_params = {}
-        
-        if query_string:
-            query_parts = query_string.split('&')
-            for part in query_parts:
-                if '=' in part:
-                    key, value = part.split('=', 1)
-                    query_params[key] = value
+        query_params = parse_qs(scope.get('query_string', b'').decode())
         
         token = None
+        if 'token' in query_params:
+            token = query_params['token'][0]
         
         # 헤더에서 Authorization 토큰 확인
         if b'authorization' in headers:
