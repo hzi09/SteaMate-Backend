@@ -39,6 +39,7 @@ services:
   celery:
     build:
       context: ./steamate
+      dockerfile: Dockerfile.wsgi
     command: ["celery", "-A", "config", "worker", "--loglevel=info", "--concurrency=4"]
     volumes:
       - ./steamate:/app
