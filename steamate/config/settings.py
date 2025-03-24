@@ -51,7 +51,10 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt.token_blacklist',
     'social_django',
     'corsheaders',
+    'channels',
+    'channels_redis',
     
+
     #Local apps
     'account',
     'chatmate',
@@ -70,10 +73,50 @@ MIDDLEWARE = [
 
 CORS_ALLOWED_ORIGINS = [
     'http://localhost:3000',
-    'http://52.79.104.109'  # React 앱의 주소
+    'http://52.79.104.109',
+    'https://steamate.co.kr',
+    'https://api.steamate.co.kr',
+    'https://steamate-front.vercel.app',
+    'ws://localhost:8000',
+    'wss://localhost:8000'
 ]
 
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r"^ws://.*",
+    r"^wss://.*"
+]
+
+# 웹소켓을 위한 추가 설정
+CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_ALL_HEADERS = True
+CORS_ALLOW_METHODS = [
+    'DELETE',
+    'GET',
+    'OPTIONS',
+    'PATCH',
+    'POST',
+    'PUT',
+]
+
+# 웹소켓 관련 CORS 설정
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+    'connection',
+    'upgrade',
+    'sec-websocket-key',
+    'sec-websocket-version',
+    'sec-websocket-extensions',
+    'sec-websocket-protocol'
+]
 
 ROOT_URLCONF = 'config.urls'
 
@@ -211,3 +254,23 @@ EMAIL_PORT = 587
 EMAIL_USE_TLS = False
 EMAIL_USE_SSL = True  # TLS를 사용할 경우 False로 설정
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER  # 기본 발신 이메일 주소
+
+# Celery Configuration Options
+CELERY_TIMEZONE = "Asia/Seoul"
+CELERY_TASK_TRACK_STARTED = True
+CELERY_TASK_TIME_LIMIT = 30 * 60
+
+# Redis Configuration Options
+CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL', 'redis://redis:6379/0')
+CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND', 'redis://redis:6379/0')
+
+# Channels 설정
+ASGI_APPLICATION = 'config.asgi.application'
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            'hosts': [(os.getenv('REDIS_HOST', 'redis'), 6379)],
+        },
+    },
+}

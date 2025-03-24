@@ -15,3 +15,9 @@ langchain_openai==0.3.7
 langchain-postgres==0.0.11
 pandas==2.2.3
 cachetools==5.5.2
+celery==5.4.0
+redis==5.2.1
+channels==4.2.0
+channels-redis==4.2.1 
+uvicorn==0.34.0
+daphne==4.1.0

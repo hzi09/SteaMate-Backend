@@ -6,7 +6,7 @@ from rest_framework.permissions import IsAuthenticated
 from .models import ChatSession, ChatMessage
 from .serializers import ChatSessionSerializer, ChatMessageSerializer
 
-from .utils_v5 import chatbot_call, bring_session_history, delete_messages_from_history
+from .utils_v5 import bring_session_history, delete_messages_from_history
 
 from django.shortcuts import get_object_or_404
 
@@ -52,21 +52,9 @@ class ChatMessageAPIView(APIView):
         serializer = ChatMessageSerializer(messages, many=True)
         return Response({"message" : "대화 내역 조회 완료", "data" : serializer.data}, status=status.HTTP_200_OK)
     
-    # 대화 내역 생성
-    def post(self, request, session_id):
-        session = get_object_or_404(ChatSession, pk=session_id)
-        serializer = ChatMessageSerializer(data=request.data)
-        if serializer.is_valid(raise_exception=True):
-            # 선호장르 가져오기
-            genre = [genre.genre_name for genre in request.user.preferred_genre.all()]
-            # 선호 게임 정보 가져오기
-            preferred_games = request.user.preferred_game.all()
-            appid = [ game.appid for game in preferred_games ]
-            game = [ game.title for game in preferred_games ]
-            # 챗봇 메시지 생성
-            chatbot_message = chatbot_call(request.data["user_message"], session_id, genre=genre, game=game, appid=appid)
-            serializer.save(session_id=session, chatbot_message=chatbot_message)
-            return Response({"message" : "대화 내역 생성 완료", "data" : serializer.data}, status=status.HTTP_201_CREATED)
+    # 참고: 대화 내역 생성은 WebSocket으로 구현되었습니다.
+    # WebSocket 연결은 '/ws/chat/<session_id>/' 경로로 이루어집니다.
+    # 자세한 내용은 consumers.py 파일을 참조하세요.
     
     # 대화 내역 삭제
     def delete(self, request, session_id, message_id):
@@ -95,6 +83,6 @@ class ChatMessageAPIView(APIView):
             appid = [game.appid for game in preferred_games]
             game = [game.title for game in preferred_games]
             # 챗봇 메시지 생성
-            chatbot_message = chatbot_call(request.data["user_message"], session_id, genre=genre, game=game, appid=appid)
+            chatbot_message = create_chatbot_message.delay(request.data["user_message"], session_id, genre=genre, game=game, appid=appid)
             serializer.save(session_id=session, chatbot_message=chatbot_message)
             return Response({"message" : "메시지 수정 완료", "data" : serializer.data}, status=status.HTTP_200_OK)

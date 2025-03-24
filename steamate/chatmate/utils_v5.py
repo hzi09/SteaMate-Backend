@@ -26,7 +26,7 @@ OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 CONNECTION_STRING = os.getenv('DATABASE_URL')  # 예: "postgresql://user:password@localhost:5432/dbname"
 
 # 챗봇 모델 설정
-chat = ChatOpenAI(model="gpt-4o-mini", api_key=OPENAI_API_KEY, temperature=0.5)
+chat = ChatOpenAI(model="gpt-4o-mini", api_key=OPENAI_API_KEY, temperature=0.5, streaming=True)
 
 # 임베딩 모델 설정
 embeddings = OpenAIEmbeddings(
@@ -124,18 +124,19 @@ def initialize_vectorstore():
             collection_name="games_collection",
             use_jsonb=True
         )
-        # 우선 모든에러처리
+        
+            # 데이터 비어있는지 확인
+        sample = vector_store.similarity_search("test", k=1)
+        if not sample:
+            print("PGVector 벡터 DB가 비어 있습니다. 데이터를 생성합니다.")
+            data = load_and_chunk_csv()
+            vector_store = create_vectorstore_from_chunks(data)
+        else:
+            print("기존 PGVector 벡터 DB를 로드했습니다.")
+    # 우선 모든에러처리
     except Exception as e: 
         print(f"벡터 db 초기화 중 오류 :: {e}")
     
-    # 데이터 비어있는지 확인
-    sample = vector_store.similarity_search("test", k=1)
-    if not sample:
-        print("PGVector 벡터 DB가 비어 있습니다. 데이터를 생성합니다.")
-        data = load_and_chunk_csv()
-        vector_store = create_vectorstore_from_chunks(data)
-    else:
-        print("기존 PGVector 벡터 DB를 로드했습니다.")
     
     return vector_store
 # 벡터 스토어 초기화
@@ -269,7 +270,7 @@ def decompose_query(pseudo_doc, chat):
     decompose_chain = decompose_prompt | chat | str_outputparser
     return [q.strip() for q in decompose_chain.invoke({"input": pseudo_doc}).split('\n') if q.strip()]
 
-def chatbot_call(user_input, session_id, genre, game, appid):
+async def get_chatbot_message(user_input, session_id, genre, game, appid):
     # 1. Get chat history
     chat_history = get_session_history(session_id)
     # 2. Generate pseudo document
@@ -281,7 +282,6 @@ def chatbot_call(user_input, session_id, genre, game, appid):
     
     # 검색 파라미터 설정
     retriever = vector_store.as_retriever(search_kwargs={"k": 8, "filter": {"appid": {"$nin": appid}}})
-    # retriever = vector_store.as_retriever(search_kwargs={"k": 3})
     
     # Search based on sub-queries
     for sub_query in sub_queries:
@@ -291,8 +291,8 @@ def chatbot_call(user_input, session_id, genre, game, appid):
     # 4. 검색 결과 통합 및 중복 제거 (page_content 한 번만 접근)
     context = "\n".join({doc.page_content for doc in all_contexts})
     
-    # 5. Generate final response
-    answer = chain_with_history.invoke(
+    # 5. 스트리밍 응답 생성 및 yield
+    async for chunk in chain_with_history.astream(
         {
             "input": user_input,
             "context": context,
@@ -300,5 +300,5 @@ def chatbot_call(user_input, session_id, genre, game, appid):
             "game": ", ".join(game)
         },
         config={"configurable": {"session_id": session_id}}
-    )
-    return answer
+    ):
+        yield chunk
