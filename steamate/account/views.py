@@ -16,7 +16,7 @@ from rest_framework_simplejwt.exceptions import InvalidToken
 from rest_framework_simplejwt.exceptions import TokenError
 import os
 from dotenv import load_dotenv
-from .utils import fetch_steam_library, get_or_create_game, get_or_create_genre, fetch_and_save_user_games
+from .utils import fetch_steam_library, get_or_create_game, get_or_create_genre
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from django.urls import reverse
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
@@ -27,7 +27,7 @@ from django.utils.timezone import now
 import logging
 from django.db.utils import IntegrityError
 from rest_framework_simplejwt.views import TokenObtainPairView
-
+from .tasks import send_verification_email, fetch_and_save_user_games
 
 load_dotenv()
 STEAM_API_KEY = os.getenv("STEAM_API_KEY")
@@ -60,9 +60,7 @@ class SignupAPIView(APIView):
             <p>감사합니다!</p>
             """
             
-            email = EmailMultiAlternatives(subject, text_content, settings.EMAIL_HOST_USER, [user.email])
-            email.attach_alternative(html_content, "text/html")
-            email.send()
+            send_verification_email.delay(subject, text_content, html_content, user.email)
             return Response({
                 "message":"회원가입 완료. 이메일을 확인하고 인증을 완료하세요.",
                 "email_verification_url":verification_url
@@ -380,7 +378,7 @@ class GetSteamLibraryAPIView(APIView):
     permission_classes = [IsAuthenticated]
     
     def post(self, request):
-        error_message = fetch_and_save_user_games(request.user)
+        error_message = fetch_and_save_user_games.delay(request.user.id)
         if error_message:
             return Response({"message":"Steam 라이브러리 연동 실패. 공개 설정을 모두 공개로 해주세요."}, status=status.HTTP_400_BAD_REQUEST)
         
