@@ -2,7 +2,7 @@ from django.shortcuts import render, redirect
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework import status
-from .models import User, UserPreferredGame, Game
+from .models import User, UserPreferredGame, Game, Genre, UserPreferredGenre, UserLibraryGame
 from .serializers import (CreateUserSerializer, UserUpdateSerializer,
                           SteamSignupSerializer, CustomTokenObtainPairSerializer)
 from rest_framework.permissions import AllowAny, IsAuthenticated, IsAdminUser
@@ -382,21 +382,75 @@ class MyPageAPIView(APIView):
                 "profileurl":user.steam_profile_url
             }
         
-        data["preferred_genre"] = [genre.genre_name for genre in user.preferred_genre.all()]
-        data["preferred_game"] = [game.title for game in user.preferred_game.all()]
+        data["preferred_genre"] = [genre.genre.genre_name for genre in user.preferred_genres.all()]
+        data["preferred_game"] = [game.game.title for game in user.preferred_games.all()]
+        data["library_games"] = [{"title":lib.game.title, "playtime":lib.playtime} for lib in user.library_games.all()]
         
         return Response(data, status=status.HTTP_200_OK)
 
 
-    def put(self, request,pk):
-        """사용자 정보 수정"""
+    def put(self, request, pk):
+        """사용자 일반 정보 수정"""
         if pk != request.user.pk:
             return Response({"error": "You do not have permission to this page"},status=status.HTTP_403_FORBIDDEN)
+        
         user = self.get_user(pk)
         serializer = UserUpdateSerializer(user, data=request.data)
+        
         if serializer.is_valid(raise_exception=True):
             serializer.save()
             return Response(serializer.data, status = status.HTTP_200_OK)
+    
+    def patch(self, request, pk):
+        """사용자의 선호 게임 + 장르 수정"""
+        if pk != request.user.pk:
+            return Response({"error": "You do not have permission to this page"},status=status.HTTP_403_FORBIDDEN)
+        
+        user = self.get_user(pk)
+        preferred_game_titles = request.data.get("preferred_game", [])
+        
+        if not isinstance(preferred_game_titles, list):
+            return Response({"error": "preferred_game은 리스트여야 합니다."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # 기존 선호 게임/장르 제거
+        UserPreferredGame.objects.filter(user=user).delete()
+        UserPreferredGenre.objects.filter(user=user).delete()
+        
+        # 게임 title -> Game 객체 일괄 조회
+        games = Game.objects.filter(title__in=preferred_game_titles)
+        game_dict = {game.title:game for game in games}
+        
+        # 선호 게임 저장 준비
+        preferred_game_objs = []
+        genre_name_set = set()
+        
+        for title in preferred_game_titles:
+            game = game_dict.get(title)
+            if not game:
+                continue
+            preferred_game_objs.append(UserPreferredGame(user=user, game=game))
+            
+            # 장르 문자열 -> 리스트
+            genre_names = [g.strip() for g in game.genre.split(",") if g.strip()]
+            genre_name_set.update(genre_names)
+        
+        # 장르 객체 일괄 조회
+        genres = Genre.objects.filter(genre_name__in=genre_name_set)
+        genre_dict = {genre.genre_name:genre for genre in genres}
+        
+        preferred_genre_objs = []
+        for genre_name in genre_name_set:
+            genre = genre_dict.get(genre_name)
+            if genre:
+                preferred_genre_objs.append(UserPreferredGenre(user=user, genre=genre))
+        
+        # bulk 저장
+        if preferred_game_objs:
+            UserPreferredGame.objects.bulk_create(preferred_game_objs)
+        if preferred_genre_objs:
+            UserPreferredGenre.objects.bulk_create(preferred_genre_objs)
+        
+        return Response({"message":"선호 게임/장르 수정 완료"}, status=status.HTTP_200_OK)
     
     def delete(self, request, pk):
         """사용자 탈퇴 및 정보 삭제"""
@@ -427,6 +481,7 @@ class GetSteamLibraryAPIView(APIView):
     
     def post(self, request):
         reuslt = fetch_and_save_user_games.delay(request.user.id)
+
         if reuslt.status == "error":
             return Response({"message":"Steam 라이브러리 연동 실패. 공개 설정을 모두 공개로 해주세요."}, status=status.HTTP_400_BAD_REQUEST)
         
