@@ -27,6 +27,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         library_games = await database_sync_to_async(lambda: self.user.library_games.all())()
         self.appid = await database_sync_to_async(lambda: [games.game.appid for games in library_games])()
         self.game = await database_sync_to_async(lambda: [games.game.title + ' (' + '플레이 시간: ' + str(games.playtime) + '분)' + ' ('+ 'appid: ' + str(games.game.appid) + ')' for games in library_games.order_by('-playtime')])()
+        self.preferred_games = await database_sync_to_async(lambda: [preferred_games.game.title + ' ('+ 'appid: ' + str(preferred_games.game.appid) + ')' for preferred_games in self.user.preferred_games.all()])()
         
         # 권한 확인 - 세션 소유자만 접근 가능
         if self.user.is_anonymous or session_user.id != self.user.id:
@@ -75,7 +76,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 if serializer.is_valid(raise_exception=True):
                     # 스트리밍 응답 처리
                     aggregated_response = ""
-                    async for chunk in get_chatbot_message(user_message, self.session_id, self.genre, self.game, self.appid):
+                    async for chunk in get_chatbot_message(user_message, self.session_id, self.genre, self.game, self.appid, self.preferred_games):
                         aggregated_response += chunk
                         # 각 청크마다 스트리밍 응답 전송
                         await self.send(text_data=json.dumps({
