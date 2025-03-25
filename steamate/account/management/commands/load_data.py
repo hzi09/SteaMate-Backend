@@ -64,12 +64,15 @@ class Command(BaseCommand):
                     released_at = datetime.strptime(released_at, "%d %b, %Y").date()
                 except (ValueError, TypeError):
                     released_at = None
-
+                
+                # 장르 문자열로 만들기
+                genre_str = ", ".join([g.strip() for g in genre_names if g.strip()])
                 # 게임 저장 (중복 체크 + 신규 생성 가능)
                 game, created = Game.objects.get_or_create(
                     appid=appid,
                     defaults={
                         "title": title,
+                        "genre": genre_str,
                         "released_at": released_at,
                         "description": description,
                         "review_score": review_score,

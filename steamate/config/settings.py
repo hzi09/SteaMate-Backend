@@ -77,8 +77,11 @@ CORS_ALLOWED_ORIGINS = [
     'https://steamate.co.kr',
     'https://api.steamate.co.kr',
     'https://steamate-front.vercel.app',
+    'https://www.steamate.co.kr',
     'ws://localhost:8000',
-    'wss://localhost:8000'
+    'wss://localhost:8000',
+    'ws://api.steamate.co.kr:8001',
+    'wss://api.steamate.co.kr:8001',
 ]
 
 CORS_ALLOWED_ORIGIN_REGEXES = [
@@ -257,7 +260,8 @@ EMAIL_HOST = "smtp.gmail.com"
 EMAIL_PORT = 587
 
 # Channels 설정
-ASGI_APPLICATION = 'config.asgi.application'
+#ASGI_APPLICATION = 'config.asgi.application'
+ASGI_APPLICATION = "steamate.route.application"
 
 EMAIL_USE_TLS = True
 EMAIL_USE_SSL = False  # TLS를 사용할 경우 False로 설정

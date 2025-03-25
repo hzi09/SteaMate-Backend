@@ -4,7 +4,7 @@ services:
     container_name: steamate
     build:
       context: ./steamate
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.wsgi
       args:
         PYTHON_VERSION: 3.12.9
       cache_from:
@@ -15,7 +15,14 @@ services:
       - .env
     ports:
       - "8000:8000"
-    command: sh -c "python manage.py migrate && python manage.py load_data && gunicorn config.wsgi:application --bind 0.0.0.0:8000 --forwarded-allow-ips '*'"
+    networks:
+      - steamate-network
+  asgi-server:
+    build:
+      context: .
+      dockerfile: steamate/Dockerfile.asgi
+    ports:
+      - "8001:8001"
     networks:
       - steamate-network
     depends_on:
@@ -32,6 +39,7 @@ services:
   celery:
     build:
       context: ./steamate
+      dockerfile: Dockerfile.wsgi
     command: ["celery", "-A", "config", "worker", "--loglevel=info", "--concurrency=4"]
     volumes:
       - ./steamate:/app
