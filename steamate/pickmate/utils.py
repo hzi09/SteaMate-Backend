@@ -10,7 +10,7 @@ def get_top_played_games(user_id, limit=10):
     with connection.cursor() as cursor:
         cursor.execute("""
             SELECT game_id
-            FROM account_userpreferredgame
+            FROM account_userlibrarygame
             WHERE user_id = %s
             ORDER BY playtime DESC
             LIMIT %s
@@ -22,8 +22,8 @@ def get_top_played_games(user_id, limit=10):
         # 게임이 없으면 랜덤으로 전체 게임 목록에서 추천
         with connection.cursor() as cursor:
             cursor.execute("""
-                SELECT game_id
-                FROM games  -- 게임 목록이 저장된 테이블
+                SELECT appid
+                FROM account_game  -- 게임 목록이 저장된 테이블
                 ORDER BY RANDOM()
                 LIMIT %s
             """, [limit])
@@ -78,7 +78,7 @@ def get_user_game_data(user_id=None):
     """
     query = """
         SELECT user_id, game_id, playtime
-        FROM account_userpreferredgame
+        FROM account_userlibrarygame
     """
     
     if user_id:
