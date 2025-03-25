@@ -51,6 +51,7 @@ prompt = ChatPromptTemplate.from_messages([
         2. 사용자 정보:
         - 선호하는 장르: {genre}
         - 이전에 플레이하고 좋아했던 게임: {game}
+        - 플레이 타임이 길 수록 중요도가 높음
         
         3. 추천 가능 게임 목록 (이 목록의 게임만 추천 가능):
         {context}
@@ -63,21 +64,16 @@ prompt = ChatPromptTemplate.from_messages([
           * 게임의 핵심 특징
         
         5. 답변 형식:
-        [추천 게임 원본 제목 1]
-        - 바로가기 링크 : https://store.steampowered.com/app/appid
-        - 이미지 링크 : https://cdn.akamai.steamstatic.com/steam/apps/appid/header.jpg
+        [추천 게임 원본 제목 1] :: appid
         - 추천 이유 및 설명
         
-        [추천 게임 원본 제목 2]
-        - 바로가기 링크 : https://store.steampowered.com/app/appid
-        - 이미지 링크 : https://cdn.akamai.steamstatic.com/steam/apps/appid/header.jpg
+        [추천 게임 원본 제목 2] :: appid
         - 추천 이유 및 설명
         
-        [추천 게임 원본 제목 3]
-        - 바로가기 링크 : https://store.steampowered.com/app/appid
-        - 이미지 링크 : https://cdn.akamai.steamstatic.com/steam/apps/appid/header.jpg
+        [추천 게임 원본 제목 3] :: appid
         - 추천 이유 및 설명
         
+        주의: 각 appid는 추천 게임 원본 제목 1, 2, 3에 맞는 appid여야 합니다.
         주의: 반드시 위 '추천 가능 게임 목록'에 없는 게임을 언급하지 마세요.
         """,
     ),
@@ -233,7 +229,8 @@ def generate_pseudo_document(user_input, chat, genre, game, chat_history):
         
         2. 사용자 선호도 (참고용):
         - 선호 장르: {genre}
-        - 좋아하는 게임: {game}
+        - 플레이 했던 게임: {game}
+        - 플레이 타임이 길 수록 중요도가 높음
         
         3. 다음 측면을 고려하여 키워드를 추출하세요:
         - 게임의 핵심적인 특징
