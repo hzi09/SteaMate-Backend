@@ -2,7 +2,7 @@ from django.shortcuts import render, redirect
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework import status
-from .models import User, UserPreferredGame, Game
+from .models import User, UserPreferredGame, Game, Genre, UserPreferredGenre, UserLibraryGame
 from .serializers import (CreateUserSerializer, UserUpdateSerializer,
                           SteamSignupSerializer, CustomTokenObtainPairSerializer)
 from rest_framework.permissions import AllowAny, IsAuthenticated, IsAdminUser
@@ -250,18 +250,51 @@ class SteamSignupAPIView(APIView):
         """Steam 회원가입: 추가 정보 입력 후 계정 생성"""
         serializer = SteamSignupSerializer(data=request.data)
         if serializer.is_valid(raise_exception=True):
-            user = serializer.save()
-
+            
+            steam_id = serializer.validated_data.get("steam_id")
+            if not steam_id or not steam_id.isdigit():
+                return Response({"error": "올바른 Steam ID를 입력하세요."}, status=status.HTTP_400_BAD_REQUEST)
+            
+            steam_name = None
+            steam_profile_url = None
+            steam_avatar = None
+            warning = None
+            
+            steam_url = f"http://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/?key={STEAM_API_KEY}&steamids={steam_id}"
+            
+            try:
+                response = requests.get(steam_url, timeout=5)
+                response.raise_for_status()
+                players = response.json().get("response",{}).get("players",[])
+                
+                if players:
+                    steam_date = players[0]
+                    steam_name = steam_date.get("personaname")
+                    steam_profile_url = steam_date.get("profileurl")
+                    steam_avatar = steam_date.get("avatar")
+                else:
+                    warning = "Steam 프로필이 비공개 상태입니다. 일부 정보가 표시되지 않을 수 있습니다."
+            except Exception as e:
+                warning = f"Steam API 요청 실패: {str(e)}"
+            
+            user = serializer.save(
+                steam_name = steam_name,
+                steam_profile_url = steam_profile_url,
+                steam_avatar = steam_avatar
+                )
+            
             # JWT 토큰 발급
             refresh = RefreshToken.for_user(user)
-            response_data = serializer.data
-            return Response({
-                **serializer.data,  # 기존 serializer 데이터 유지
+            response_data = {
+                **serializer.data,
                 "message": "Steam 회원가입 완료",
                 "access": str(refresh.access_token),
                 "refresh": str(refresh),
                 "user_id": user.id
-            }, status=status.HTTP_201_CREATED)
+            }
+            if warning:
+                response_data["warning"] = warning
+            return Response(response_data, status=status.HTTP_201_CREATED)
 
 
 class SteamLinkAPIView(APIView):
@@ -271,24 +304,55 @@ class SteamLinkAPIView(APIView):
     def post(self, request):
         """Steam 계정을 기존 유저 계정에 연동"""
         steam_id = request.data.get("steam_id")
-        
+    
         if not steam_id or not steam_id.isdigit():
             return Response({"error":"올바른 Steam ID를 입력하세요"}, status=status.HTTP_406_NOT_ACCEPTABLE)
-        
+    
         user = request.user
-        
+    
         # 다른 계정에 연동된 Steam ID 인지 확인
         if User.objects.filter(steam_id=steam_id).exists():
             return Response({"error":"이미 다른 계정에 연동된 Steam ID입니다."},status=status.HTTP_403_FORBIDDEN)
-        
+    
         # 현재 로그인한 유저에 Steam ID 정보가 있는지 확인
         if user.steam_id:
             return Response({"error":"이미 Steam ID가 연동되어있습니다."}, status=status.HTTP_409_CONFLICT)
+
+        steam_name = None
+        steam_profile_url = None
+        steam_avatar = None
+        warning = None
         
+        steam_url = f"http://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/?key={STEAM_API_KEY}&steamids={steam_id}"
+    
+        try:
+            response = requests.get(steam_url, timeout=5)
+            response.raise_for_status()
+            players = response.json().get("response",{}).get("players",[])
+            
+            if players:
+                steam_data = players[0]
+                steam_name = steam_data.get("personaname")
+                steam_profile_url = steam_data.get("profileurl")
+                steam_avatar = steam_data.get("avatar")
+            else:
+                warning = "Steam 프로필이 비공개 상태입니다. 일부 정보가 표시되지 않을 수 있습니다."
+        except Exception as e:
+            warning = f"Steam API 요청 실패: {str(e)}"
+    
+    
         user.steam_id = steam_id
-        
+        user.steam_name = steam_data.get("personaname")
+        user.steam_profile_url = steam_data.get("profileurl")
+        user.steam_avatar = steam_data.get("avatar")
         user.save()
-        return Response({"message":"Steam 계정 연동 완료"}, status=status.HTTP_201_CREATED)
+        
+        response_data = {
+            "message": "Steam 계정 연동 완료",
+        }
+        if warning:
+            response_data["warning"] = warning
+        return Response(response_data, status=status.HTTP_201_CREATED)
 
 
 
@@ -312,43 +376,80 @@ class MyPageAPIView(APIView):
         
         # Steam API로 사용자 정보 가져오기
         if user.steam_id:
-            steam_url = f"http://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/?key={STEAM_API_KEY}&steamids={user.steam_id}"
-            
-            try:
-                response = requests.get(steam_url, timeout=5)
-                response.raise_for_status()
-                response_data = response.json()
-                
-                players = response_data.get("response",{}).get("players",[])
-                if players:
-                    steam_data=players[0]
-                    
-                    data["steam_profile"] = {
-                        "personaname": steam_data.get("personaname"),
-                        "profileurl": steam_data.get("profileurl"),
-                        "avatar": steam_data.get("avatar"),
-                        "country": steam_data.get("loccountrycode"),
-                    }
-                else:
-                    data["steam_profile_error"] = "Steam 프로필 정보를 가져오지 못했습니다."
-            except Exception as e:
-                data["steam_profile_error"] = f"Steam API 호출 오류: {str(e)}"
+            data["steam_profile"] = {
+                "personname":user.steam_name,
+                "avatar":user.steam_avatar,
+                "profileurl":user.steam_profile_url
+            }
         
-        data["preferred_genre"] = [genre.genre_name for genre in user.preferred_genre.all()]
-        data["preferred_game"] = [game.title for game in user.preferred_game.all()]
+        data["preferred_genre"] = [genre.genre.genre_name for genre in user.preferred_genres.all()]
+        data["preferred_game"] = [game.game.title for game in user.preferred_games.all()]
+        data["library_games"] = [{"title":lib.game.title, "playtime":lib.playtime} for lib in user.library_games.all()]
         
         return Response(data, status=status.HTTP_200_OK)
 
 
-    def put(self, request,pk):
-        """사용자 정보 수정"""
+    def put(self, request, pk):
+        """사용자 일반 정보 수정"""
         if pk != request.user.pk:
             return Response({"error": "You do not have permission to this page"},status=status.HTTP_403_FORBIDDEN)
+        
         user = self.get_user(pk)
         serializer = UserUpdateSerializer(user, data=request.data)
+        
         if serializer.is_valid(raise_exception=True):
             serializer.save()
             return Response(serializer.data, status = status.HTTP_200_OK)
+    
+    def patch(self, request, pk):
+        """사용자의 선호 게임 + 장르 수정"""
+        if pk != request.user.pk:
+            return Response({"error": "You do not have permission to this page"},status=status.HTTP_403_FORBIDDEN)
+        
+        user = self.get_user(pk)
+        preferred_game_titles = request.data.get("preferred_game", [])
+        
+        if not isinstance(preferred_game_titles, list):
+            return Response({"error": "preferred_game은 리스트여야 합니다."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # 기존 선호 게임/장르 제거
+        UserPreferredGame.objects.filter(user=user).delete()
+        UserPreferredGenre.objects.filter(user=user).delete()
+        
+        # 게임 title -> Game 객체 일괄 조회
+        games = Game.objects.filter(title__in=preferred_game_titles)
+        game_dict = {game.title:game for game in games}
+        
+        # 선호 게임 저장 준비
+        preferred_game_objs = []
+        genre_name_set = set()
+        
+        for title in preferred_game_titles:
+            game = game_dict.get(title)
+            if not game:
+                continue
+            preferred_game_objs.append(UserPreferredGame(user=user, game=game))
+            
+            # 장르 문자열 -> 리스트
+            genre_names = [g.strip() for g in game.genre.split(",") if g.strip()]
+            genre_name_set.update(genre_names)
+        
+        preferred_genre_objs = []
+        for genre_name in genre_name_set:
+            genre, _ = Genre.objects.get_or_create(genre_name=genre_name)
+            preferred_genre_objs.append(UserPreferredGenre(user=user, genre=genre))
+        
+        # bulk 저장
+        if preferred_game_objs:
+            UserPreferredGame.objects.bulk_create(preferred_game_objs)
+        if preferred_genre_objs:
+            UserPreferredGenre.objects.bulk_create(preferred_genre_objs)
+        
+        return Response({
+            "message": "선호 게임/장르 수정 완료",
+                "preferred_games": preferred_game_titles,
+                "preferred_genres": list(genre_name_set)
+            }, status=status.HTTP_200_OK)
     
     def delete(self, request, pk):
         """사용자 탈퇴 및 정보 삭제"""
@@ -378,11 +479,8 @@ class GetSteamLibraryAPIView(APIView):
     permission_classes = [IsAuthenticated]
     
     def post(self, request):
-        result = fetch_and_save_user_games.delay(request.user.id)
-        if result.status == "error":
-            return Response({"message":"Steam 라이브러리 연동 실패. 공개 설정을 모두 공개로 해주세요."}, status=status.HTTP_400_BAD_REQUEST)
-        
-        return Response({"message":"Steam 라이브러리 연동 완료"}, status=status.HTTP_201_CREATED)
+        reuslt = fetch_and_save_user_games.delay(request.user.id)
+        return Response({"message":"Steam 라이브러리 연동 중입니다."}, status=status.HTTP_201_CREATED)
 
 class LogoutAPIView(APIView):
     """
