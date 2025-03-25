@@ -479,7 +479,11 @@ class GetSteamLibraryAPIView(APIView):
     permission_classes = [IsAuthenticated]
     
     def post(self, request):
-        reuslt = fetch_and_save_user_games.delay(request.user.id)
+        user = request.user
+        user.is_syncing = True
+        user.save()
+        
+        result = fetch_and_save_user_games.delay(request.user.id)
         return Response({"message":"Steam 라이브러리 연동 중입니다."}, status=status.HTTP_201_CREATED)
 
 class LogoutAPIView(APIView):

@@ -89,9 +89,10 @@ class UserUpdateSerializer(serializers.ModelSerializer):
     """유저 정보 수정 Serializer"""   
     class Meta:
         model = User
-        fields = ['nickname', 'profile_image',  'steam_id']
+        fields = ['nickname', 'profile_image',  'steam_id', 'is_syncing']
         extra_kwargs = {'profile_image': {'required': False},
-                        'steam_id': {'required': False}
+                        'steam_id': {'required': False},
+                        'is_syncing': {'read_only': True}
         }
 
 
