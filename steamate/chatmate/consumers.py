@@ -26,7 +26,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         self.genre = await database_sync_to_async(lambda: [genres.genre.genre_name for genres in self.user.preferred_genres.all()])()
         library_games = await database_sync_to_async(lambda: self.user.library_games.all())()
         self.appid = await database_sync_to_async(lambda: [games.game.appid for games in library_games])()
-        self.game = await database_sync_to_async(lambda: [games.game.title + ' (' + '플레이 시간: ' + str(games.playtime) + '분)' for games in library_games.order_by('-playtime')[:10]])()
+        self.game = await database_sync_to_async(lambda: [games.game.title + ' (' + '플레이 시간: ' + str(games.playtime) + '분)' + ' ('+ 'appid: ' + str(games.game.appid) + ')' for games in library_games.order_by('-playtime')])()
         
         # 권한 확인 - 세션 소유자만 접근 가능
         if self.user.is_anonymous or session_user.id != self.user.id:
