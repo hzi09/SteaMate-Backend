@@ -78,6 +78,7 @@ prompt = ChatPromptTemplate.from_messages([
         - 이미지 링크 : https://cdn.akamai.steamstatic.com/steam/apps/appid/header.jpg
         - 추천 이유 및 설명
         
+        주의: 각 링크는 추천 게임 원본 제목 1, 2, 3에 맞는 링크여야 합니다.
         주의: 반드시 위 '추천 가능 게임 목록'에 없는 게임을 언급하지 마세요.
         """,
     ),
