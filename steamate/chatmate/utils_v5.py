@@ -51,6 +51,7 @@ prompt = ChatPromptTemplate.from_messages([
         2. 사용자 정보:
         - 선호하는 장르: {genre}
         - 이전에 플레이하고 좋아했던 게임: {game}
+        - 플레이 타임이 길 수록 중요도가 높음
         
         3. 추천 가능 게임 목록 (이 목록의 게임만 추천 가능):
         {context}
@@ -228,7 +229,8 @@ def generate_pseudo_document(user_input, chat, genre, game, chat_history):
         
         2. 사용자 선호도 (참고용):
         - 선호 장르: {genre}
-        - 좋아하는 게임: {game}
+        - 플레이 했던 게임: {game}
+        - 플레이 타임이 길 수록 중요도가 높음
         
         3. 다음 측면을 고려하여 키워드를 추출하세요:
         - 게임의 핵심적인 특징
