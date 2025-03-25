@@ -68,7 +68,7 @@ class User(AbstractUser):
 class UserLibraryGame(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='library_games')
     game = models.ForeignKey(Game, on_delete=models.CASCADE)
-    playtime = models.IntegerField(default=0)
+    playtime = models.IntegerField(default=0, help_text="단위: 분")
     
     class Meta:
         unique_together = ('user', 'game')

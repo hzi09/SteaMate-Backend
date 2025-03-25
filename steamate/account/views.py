@@ -434,15 +434,10 @@ class MyPageAPIView(APIView):
             genre_names = [g.strip() for g in game.genre.split(",") if g.strip()]
             genre_name_set.update(genre_names)
         
-        # 장르 객체 일괄 조회
-        genres = Genre.objects.filter(genre_name__in=genre_name_set)
-        genre_dict = {genre.genre_name:genre for genre in genres}
-        
         preferred_genre_objs = []
         for genre_name in genre_name_set:
-            genre = genre_dict.get(genre_name)
-            if genre:
-                preferred_genre_objs.append(UserPreferredGenre(user=user, genre=genre))
+            genre, _ = Genre.objects.get_or_create(genre_name=genre_name)
+            preferred_genre_objs.append(UserPreferredGenre(user=user, genre=genre))
         
         # bulk 저장
         if preferred_game_objs:
@@ -450,7 +445,11 @@ class MyPageAPIView(APIView):
         if preferred_genre_objs:
             UserPreferredGenre.objects.bulk_create(preferred_genre_objs)
         
-        return Response({"message":"선호 게임/장르 수정 완료"}, status=status.HTTP_200_OK)
+        return Response({
+            "message": "선호 게임/장르 수정 완료",
+                "preferred_games": preferred_game_titles,
+                "preferred_genres": list(genre_name_set)
+            }, status=status.HTTP_200_OK)
     
     def delete(self, request, pk):
         """사용자 탈퇴 및 정보 삭제"""
@@ -481,11 +480,7 @@ class GetSteamLibraryAPIView(APIView):
     
     def post(self, request):
         reuslt = fetch_and_save_user_games.delay(request.user.id)
-
-        if reuslt.status == "error":
-            return Response({"message":"Steam 라이브러리 연동 실패. 공개 설정을 모두 공개로 해주세요."}, status=status.HTTP_400_BAD_REQUEST)
-        
-        return Response({"message":"Steam 라이브러리 연동 완료"}, status=status.HTTP_201_CREATED)
+        return Response({"message":"Steam 라이브러리 연동 중입니다."}, status=status.HTTP_201_CREATED)
 
 class LogoutAPIView(APIView):
     """
