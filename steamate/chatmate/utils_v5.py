@@ -63,22 +63,16 @@ prompt = ChatPromptTemplate.from_messages([
           * 게임의 핵심 특징
         
         5. 답변 형식:
-        [추천 게임 원본 제목 1]
-        - 바로가기 링크 : https://store.steampowered.com/app/appid
-        - 이미지 링크 : https://cdn.akamai.steamstatic.com/steam/apps/appid/header.jpg
+        [추천 게임 원본 제목 1] :: appid
         - 추천 이유 및 설명
         
-        [추천 게임 원본 제목 2]
-        - 바로가기 링크 : https://store.steampowered.com/app/appid
-        - 이미지 링크 : https://cdn.akamai.steamstatic.com/steam/apps/appid/header.jpg
+        [추천 게임 원본 제목 2] :: appid
         - 추천 이유 및 설명
         
-        [추천 게임 원본 제목 3]
-        - 바로가기 링크 : https://store.steampowered.com/app/appid
-        - 이미지 링크 : https://cdn.akamai.steamstatic.com/steam/apps/appid/header.jpg
+        [추천 게임 원본 제목 3] :: appid
         - 추천 이유 및 설명
         
-        주의: 각 링크는 추천 게임 원본 제목 1, 2, 3에 맞는 링크여야 합니다.
+        주의: 각 appid는 추천 게임 원본 제목 1, 2, 3에 맞는 appid여야 합니다.
         주의: 반드시 위 '추천 가능 게임 목록'에 없는 게임을 언급하지 마세요.
         """,
     ),
