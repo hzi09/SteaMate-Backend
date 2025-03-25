@@ -41,7 +41,7 @@ def get_or_create_game(appid):
         response.raise_for_status()
         data = response.json()
     except requests.RequestException as e:
-        print(f"Steam API 오류: {e}")
+        logger.error(f"Steam API 오류 (appid={appid}): {e}")
         return None  # API 호출 실패 시 None 반환
     
     # API 응답 확인
@@ -131,41 +131,3 @@ def fetch_steam_library(steamid):
     except Exception as e:
         logger.exception(f"Steam 라이브러리 가져오기 실패 (error: {str(e)}")
         return  [],[],[] # 에러 발생 시 빈 리스트 반환
-
-
-def fetch_and_save_user_games(user):
-    """
-    사용자의 Steam 라이브러리를 가져와 UserPreferredGame에 저장하는 함수
-    """
-    logger.info(f"Steam 라이브러리 가져오기 요청 시작 (Steam id : {user.steam_id})")
-
-    appids, titles, playtimes = fetch_steam_library(user.steam_id)
-
-    if not appids:
-        logger.warning(f"Steam 라이브러리 불러오기 실패 또는 빈 데이터 (steam_id: {user.steam_id})")
-        return "Steam 라이브러리가 비어있거나, 프로필이 비공개 상태입니다. Steam 설정에서 프로필과 게임 라이브러리를 공개로 변경해주세요."
-
-    user_preferred_games = []
-    user_preferred_genres = set()
-
-    for i in range(len(appids)):
-        game = get_or_create_game(appid=appids[i])
-        if game:
-            user_preferred_games.append(UserPreferredGame(user=user, game=game, playtime=playtimes[i]))
-            
-            genre_names = [g.strip() for g in game.genre.split(",") if g.strip()]
-            for genre_name in genre_names:
-                genre_instance = get_or_create_genre(genre_name)
-                user_preferred_genres.add(genre_instance)
-
-    try:
-        with transaction.atomic():
-            if user_preferred_games:
-                UserPreferredGame.objects.bulk_create(user_preferred_games)
-            if user_preferred_genres:
-                user.preferred_genre.add(*user_preferred_genres)
-    except IntegrityError as e:
-        logger.error(f"UserPreferredGame 생성 오류: {str(e)}")
-        return "게임 데이터 저장 중 오류 발생"
-    
-    return None  # 정상 처리 시 None 반환
