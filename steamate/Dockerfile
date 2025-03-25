@@ -2,8 +2,14 @@ FROM python:3.12.9-slim
 
 RUN apt-get update && apt-get install -y netcat-openbsd \
     libpq-dev \
-    postgresql-client
-
+    postgresql-client \
+    build-essential \
+    python3-dev \
+    libatlas-base-dev \
+    gfortran \
+    cmake \
+    wget \
+    && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt /tmp/
 RUN pip install --no-cache-dir -r /tmp/requirements.txt
