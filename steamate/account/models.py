@@ -40,10 +40,12 @@ class User(AbstractUser):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     steam_id = models.CharField(max_length=20, blank=True, null=True, unique=True)
-    preferred_genre = models.ManyToManyField(Genre, related_name='users_preferred_genre', blank = True)
-    preferred_game = models.ManyToManyField(Game, through='UserPreferredGame', related_name='users_preferred_game', blank = True)
     is_verified = models.BooleanField(default=False)
     verification_expires_at = models.DateTimeField(default=now)
+    # steam 관련 정보 추가
+    steam_name = models.CharField(max_length=50, blank=True, null=True)
+    steam_profile_url = models.URLField(blank=True, null=True)
+    steam_avatar = models.URLField(blank=True, null=True)
     
     def __str__(self):
         return self.username
@@ -62,13 +64,39 @@ class User(AbstractUser):
         """ 이메일 인증이 만료되었는지 확인하는 함수 """
         return not self.is_verified and now() > self.verification_expires_at
 
-class UserPreferredGame(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+
+class UserLibraryGame(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='library_games')
     game = models.ForeignKey(Game, on_delete=models.CASCADE)
-    playtime = models.IntegerField(default=0)
+    playtime = models.IntegerField(default=0, help_text="단위: 분")
     
     class Meta:
         unique_together = ('user', 'game')
     
     def __str__(self):
         return f"{self.user.username} - {self.game.title} ({self.playtime}분)"
+
+class UserPreferredGame(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='preferred_games')
+    game = models.ForeignKey(Game, on_delete=models.CASCADE)
+
+    class Meta:
+        unique_together = ('user', 'game')
+
+    def save(self, *args, **kwargs):
+        if not UserLibraryGame.objects.filter(user=self.user, game=self.game).exists():
+            raise ValueError("이 게임은 유저의 라이브러리에 없습니다.")
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.user.username} - {self.game.title}"
+
+class UserPreferredGenre(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='preferred_genres')
+    genre = models.ForeignKey(Genre, on_delete=models.CASCADE)
+
+    class Meta:
+        unique_together = ('user', 'genre')
+
+    def __str__(self):
+        return f"{self.user.username} - {self.genre.genre_name}"
