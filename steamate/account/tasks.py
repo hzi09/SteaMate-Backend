@@ -18,8 +18,12 @@ def send_verification_email(subject, text_content, html_content, to_email):
 def fetch_and_save_user_games(user_id):
     try:
         user = User.objects.get(id=user_id)
+        user.is_syncing = True
+        user.save()
     except User.DoesNotExist:
         logger.error(f"User does not exist (user_id: {user_id})")
+        user.is_syncing = False
+        user.save()
         return {"status": "error", "message": "사용자가 존재하지 않습니다."}
 
     logger.info(f"Steam 라이브러리 가져오기 요청 시작 (Steam id : {user.steam_id})")
@@ -28,6 +32,8 @@ def fetch_and_save_user_games(user_id):
 
     if not appids:
         logger.warning(f"Steam 라이브러리 불러오기 실패 또는 빈 데이터 (steam_id: {user.steam_id})")
+        user.is_syncing = False
+        user.save(update_fields=["is_syncing"])
         return {"status": "error", "message": "Steam 라이브러리가 비어있거나, 프로필이 비공개 상태입니다."}
 
     try:
@@ -55,6 +61,10 @@ def fetch_and_save_user_games(user_id):
 
     except IntegrityError as e:
         logger.error(f"UserLibraryGame 생성 오류: {str(e)}")
+        user.is_syncing = False
+        user.save()
         return {"status": "error", "message": "게임 데이터 저장 중 오류 발생"}
 
+    user.is_syncing = False
+    user.save()
     return {"status": "success", "message": "라이브러리 저장 완료"}

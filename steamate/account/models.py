@@ -46,6 +46,7 @@ class User(AbstractUser):
     steam_name = models.CharField(max_length=50, blank=True, null=True)
     steam_profile_url = models.URLField(blank=True, null=True)
     steam_avatar = models.URLField(blank=True, null=True)
+    is_syncing = models.BooleanField(default=False)
     
     def __str__(self):
         return self.username

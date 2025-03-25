@@ -26,7 +26,7 @@ OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 CONNECTION_STRING = os.getenv('DATABASE_URL')  # 예: "postgresql://user:password@localhost:5432/dbname"
 
 # 챗봇 모델 설정
-chat = ChatOpenAI(model="gpt-4o-mini", api_key=OPENAI_API_KEY, temperature=0.5, streaming=True)
+chat = ChatOpenAI(model="gpt-4o-mini", api_key=OPENAI_API_KEY, temperature=0.7, streaming=True)
 
 # 임베딩 모델 설정
 embeddings = OpenAIEmbeddings(
@@ -41,40 +41,42 @@ prompt = ChatPromptTemplate.from_messages([
     MessagesPlaceholder(variable_name="chat_history"),
     (
         "system",
-        """당신은 스팀 게임 평론가가입니다. 반드시 다음 규칙을 따르세요:
+        """당신은 스팀 게임 평론가입니다. 반드시 다음 규칙을 따르세요:
 
         1. 가장 중요한 규칙:
-        - 반드시 아래 '추천 가능 게임 목록'에 포함된 게임만 추천해야 합니다
-        - 목록에 없는 게임은 절대 언급하지 마세요
         - 사용자와 게임 관련 대화를 하며 상호작용을 유지하세요
+        - 게임과 무관한 대화는 하지 않습니다.
         
         2. 사용자 정보:
         - 선호하는 장르: {genre}
-        - 이전에 플레이하고 좋아했던 게임: {game}
+        - 선호하는 게임: {preferred_games}
+        - 이전에 플레이 했던 게임: {game}
         - 플레이 타임이 길 수록 중요도가 높음
         
-        3. 추천 가능 게임 목록 (이 목록의 게임만 추천 가능):
+        3. 게임 목록:
         {context}
         
         4. 추천 방식:
-        - 위 '추천 가능 게임 목록'에서 3개의 게임만 선택하여 추천
+        - 위 게임 목록에서 3개의 게임만 선택하여 추천
         - 각 게임에 대해 다음을 고려하여 추천 이유를 작성:
-          * 사용자의 선호 장르와의 연관성
+          * 사용자의 선호 장르, 선호 게임과의 연관성
           * 이전에 플레이한 게임과의 유사점
           * 게임의 핵심 특징
+          * 사용자 정보에 있는 게임들은 추천하지 않음
         
         5. 답변 형식:
-        [추천 게임 원본 제목 1] :: appid
+        [게임 제목 1] :: appid
         - 추천 이유 및 설명
         
-        [추천 게임 원본 제목 2] :: appid
+        [게임 제목 2] :: appid
         - 추천 이유 및 설명
         
-        [추천 게임 원본 제목 3] :: appid
+        [게임 제목 3] :: appid
         - 추천 이유 및 설명
         
-        주의: 각 appid는 추천 게임 원본 제목 1, 2, 3에 맞는 appid여야 합니다.
-        주의: 반드시 위 '추천 가능 게임 목록'에 없는 게임을 언급하지 마세요.
+        주의: 각 appid는 게임 제목 1, 2, 3에 맞는 appid여야 합니다.
+        주의: 게임과 무관한 대화는 하지 않습니다.
+        주의: 사용자 정보에 있는 게임들은 추천하지 않습니다.
         """,
     ),
     ("human", "{input}"),
@@ -210,7 +212,7 @@ chain_with_history = RunnableWithMessageHistory(
     history_messages_key="chat_history",
 )
 
-def generate_pseudo_document(user_input, chat, genre, game, chat_history):
+def generate_pseudo_document(user_input, chat, genre, game, preferred_games, chat_history):
     """Query2doc/HyDE approach to generate a pseudo document."""
     pseudo_doc_prompt = ChatPromptTemplate.from_messages([
         ("system", """
@@ -229,8 +231,10 @@ def generate_pseudo_document(user_input, chat, genre, game, chat_history):
         
         2. 사용자 선호도 (참고용):
         - 선호 장르: {genre}
+        - 선호 게임: {preferred_games}
         - 플레이 했던 게임: {game}
         - 플레이 타임이 길 수록 중요도가 높음
+        - 사용자 정보에 있는 게임들은 추천하지 않음!
         
         3. 다음 측면을 고려하여 키워드를 추출하세요:
         - 게임의 핵심적인 특징
@@ -249,7 +253,7 @@ def generate_pseudo_document(user_input, chat, genre, game, chat_history):
     ])
     
     pseudo_doc_chain = pseudo_doc_prompt | chat | str_outputparser
-    return pseudo_doc_chain.invoke({"input": user_input, "genre": genre, "game": game, "chat_history": chat_history})
+    return pseudo_doc_chain.invoke({"input": user_input, "genre": genre, "game": game, "preferred_games": preferred_games, "chat_history": chat_history})
 
 def decompose_query(pseudo_doc, chat):
     """Decompose the pseudo document into sub-queries."""
@@ -274,23 +278,26 @@ def decompose_query(pseudo_doc, chat):
     decompose_chain = decompose_prompt | chat | str_outputparser
     return [q.strip() for q in decompose_chain.invoke({"input": pseudo_doc}).split('\n') if q.strip()]
 
-async def get_chatbot_message(user_input, session_id, genre, game, appid):
+async def get_chatbot_message(user_input, session_id, genre, game, appid, preferred_games):
     # 1. Get chat history
     chat_history = get_session_history(session_id)
     # 2. Generate pseudo document
-    pseudo_doc = generate_pseudo_document(user_input, chat, genre, game, chat_history)
+    pseudo_doc = generate_pseudo_document(user_input, chat, genre, game, preferred_games, chat_history)
     # 3. Decompose the generated pseudo document into sub-queries
     sub_queries = decompose_query(pseudo_doc, chat)
     # 4. Perform search for each sub-query
     all_contexts = []
     
     # 검색 파라미터 설정
-    retriever = vector_store.as_retriever(search_kwargs={"k": 8, "filter": {"appid": {"$nin": appid}}})
+    # retriever = vector_store.as_retriever(search_kwargs={"k": 8, "filter": {"appid": {"$nin": appid}}})
+    retriever = vector_store.as_retriever(search_kwargs={"k": 8})
     
     # Search based on sub-queries
     for sub_query in sub_queries:
         sub_results = retriever.invoke(sub_query)
         all_contexts.extend(sub_results)
+        
+    all_contexts.extend(retriever.invoke(user_input))
     
     # 4. 검색 결과 통합 및 중복 제거 (page_content 한 번만 접근)
     context = "\n".join({doc.page_content for doc in all_contexts})
@@ -301,7 +308,8 @@ async def get_chatbot_message(user_input, session_id, genre, game, appid):
             "input": user_input,
             "context": context,
             "genre": ", ".join(genre),
-            "game": ", ".join(game)
+            "game": ", ".join(game),
+            "preferred_games": ", ".join(preferred_games)
         },
         config={"configurable": {"session_id": session_id}}
     ):
