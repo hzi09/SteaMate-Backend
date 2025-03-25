@@ -44,16 +44,16 @@ def fetch_and_save_user_games(user_id):
                     logger.warning(f"게임 정보를 가져오지 못함 (appid: {appids[i]})")
                     continue
             
-            UserLibraryGame.objects.update_or_create(
-                user=user,
-                game=game,
-                defaults={"playtime": playtimes[i]}
-            )
+                UserLibraryGame.objects.update_or_create(
+                    user=user,
+                    game=game,
+                    defaults={"playtime": playtimes[i]}
+                )
 
-            current_game_ids.append(game.id)
+                current_game_ids.append(game.appid)
         
         # 사용자의 라이브러리에 없는 게임 삭제
-        UserLibraryGame.objects.filter(user=user).exclude(game_id__in=current_game_ids).delete()
+        UserLibraryGame.objects.filter(user=user).exclude(game_appid__in=current_game_ids).delete()
                 
     except IntegrityError as e:
         logger.error(f"UserLibraryGame 생성 오류: {str(e)}")

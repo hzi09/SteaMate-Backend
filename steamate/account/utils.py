@@ -131,4 +131,3 @@ def fetch_steam_library(steamid):
     except Exception as e:
         logger.exception(f"Steam 라이브러리 가져오기 실패 (error: {str(e)}")
         return  [],[],[] # 에러 발생 시 빈 리스트 반환
-
