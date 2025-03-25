@@ -22,6 +22,12 @@ class ChatConsumer(AsyncWebsocketConsumer):
         self.session, session_user = await get_session_and_user(self.session_id)
         self.user = self.scope['user']
         
+        # 사용자 정보 가져오기
+        self.genre = await database_sync_to_async(lambda: [genres.genre.genre_name for genres in self.user.preferred_genres.all()])()
+        library_games = await database_sync_to_async(lambda: self.user.library_games.all())()
+        self.appid = await database_sync_to_async(lambda: [games.game.appid for games in library_games])()
+        self.game = await database_sync_to_async(lambda: [games.game.title + ' (' + '플레이 시간: ' + str(games.playtime) + '분)' for games in library_games.order_by('-playtime')[:10]])()
+        
         # 권한 확인 - 세션 소유자만 접근 가능
         if self.user.is_anonymous or session_user.id != self.user.id:
             await self.close(code=4003)
@@ -67,16 +73,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 # 메시지 유효성 검사
                 serializer = ChatMessageSerializer(data={'user_message': user_message})
                 if serializer.is_valid(raise_exception=True):
-                
-                    genre = await database_sync_to_async(lambda: [genre.genre_name for genre in self.user.preferred_genre.all()])()
-                    # 선호 게임 정보 가져오기(appid, game_title)
-                    preferred_games = await database_sync_to_async(lambda: self.user.preferred_game.all())()
-                    appid = await database_sync_to_async(lambda: [game.appid for game in preferred_games])()
-                    game = await database_sync_to_async(lambda: [game.title for game in preferred_games])()
-                    
                     # 스트리밍 응답 처리
                     aggregated_response = ""
-                    async for chunk in get_chatbot_message(user_message, self.session_id, genre, game, appid):
+                    async for chunk in get_chatbot_message(user_message, self.session_id, self.genre, self.game, self.appid):
                         aggregated_response += chunk
                         # 각 청크마다 스트리밍 응답 전송
                         await self.send(text_data=json.dumps({
@@ -126,16 +125,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
             # 메시지 유효성 검사
             serializer = ChatMessageSerializer(message, data={'user_message': new_message})
             if serializer.is_valid(raise_exception=True):
-                
-                # 사용자 정보 가져오기
-                genre = await database_sync_to_async(lambda: [genre.genre_name for genre in self.user.preferred_genre.all()])()
-                preferred_games = await database_sync_to_async(lambda: self.user.preferred_game.all())()
-                appid = await database_sync_to_async(lambda: [game.appid for game in preferred_games])()
-                game = await database_sync_to_async(lambda: [game.title for game in preferred_games])()
-                
                 # 새로운 챗봇 응답 생성 및 스트리밍
                 aggregated_response = ""
-                async for chunk in get_chatbot_message(new_message, self.session_id, genre, game, appid):
+                async for chunk in get_chatbot_message(new_message, self.session_id, self.genre, self.game, self.appid):
                     aggregated_response += chunk
                     await self.send(text_data=json.dumps({
                         'response': aggregated_response,
