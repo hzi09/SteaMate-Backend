@@ -4,8 +4,8 @@ from channels.db import database_sync_to_async
 from django.shortcuts import get_object_or_404
 from .models import ChatSession, ChatMessage
 from .serializers import ChatMessageSerializer
-from .utils_v5 import bring_session_history, delete_messages_from_history, get_chatbot_message
-from django.contrib.auth.models import AnonymousUser
+from .utils_v5 import get_chatbot_message
+from .history import delete_session_history, delete_messages_from_history
 
 @database_sync_to_async
 def get_session_and_user(session_id):
@@ -128,7 +128,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             if serializer.is_valid(raise_exception=True):
                 # 새로운 챗봇 응답 생성 및 스트리밍
                 aggregated_response = ""
-                async for chunk in get_chatbot_message(new_message, self.session_id, self.genre, self.game, self.appid):
+                async for chunk in get_chatbot_message(new_message, self.session_id, self.genre, self.game, self.appid, self.preferred_games):
                     aggregated_response += chunk
                     await self.send(text_data=json.dumps({
                         'response': aggregated_response,
@@ -155,7 +155,10 @@ class ChatConsumer(AsyncWebsocketConsumer):
     
     async def disconnect(self, close_code):
         """웹소켓 연결 종료 시 호출되는 메서드"""
-        # 세션 내역 메모리에서 삭제 코드가 필요한 경우 여기에 작성
-        pass
+        try:
+            # 세션 내역 메모리에서 삭제 코드가 필요한 경우 여기에 작성
+            await database_sync_to_async(delete_session_history)(self.session_id)
+        except Exception as e:
+            print(f"세션 내역 삭제 중 오류가 발생했습니다: {str(e)}")
     
     
