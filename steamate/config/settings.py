@@ -198,6 +198,10 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'account.tasks.delete_expired_unverified_users',
         'schedule': crontab(minute='*/10'),
     },
+    'train-collaborative-filtering-every-day': {
+        'task': 'pickmate.tasks.train_collaborative_filtering',
+        'schedule': crontab(minute=20, hour=16),
+    }
 }
 
 # Password validation
@@ -224,7 +228,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Asia/Seoul'
 
 USE_I18N = True
 
