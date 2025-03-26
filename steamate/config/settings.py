@@ -18,7 +18,11 @@ from django.core.exceptions import ImproperlyConfigured
 
 load_dotenv()
 
+# API 키 환경변수에서 가져오기
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 
+# PostgreSQL 연결 문자열 (환경 변수에서 가져오거나 직접 설정)
+CONNECTION_STRING = os.getenv('DATABASE_URL')  # 예: "postgresql://user:password@localhost:5432/dbname"
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
