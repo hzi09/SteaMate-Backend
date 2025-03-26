@@ -14,12 +14,6 @@ class Game(models.Model):
     appid = models.IntegerField(primary_key=True)
     title = models.CharField(max_length=255)
     genre = models.CharField(max_length=255)
-    released_at = models.DateField(blank=True, null=True)
-    description = models.TextField(blank = True)
-    review_score = models.FloatField(default = 0, blank = True)
-    comment = models.TextField(blank = True)
-    header_image = models.URLField(blank = True)
-    trailer_url = models.URLField(blank = True)
     
 
 class User(AbstractUser):
