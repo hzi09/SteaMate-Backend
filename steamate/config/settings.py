@@ -200,7 +200,7 @@ CELERY_BEAT_SCHEDULE = {
     },
     'train-collaborative-filtering-every-day': {
         'task': 'pickmate.tasks.train_collaborative_filtering',
-        'schedule': crontab(minute=20, hour=16),
+        'schedule': crontab(minute=0, hour=0),
     }
 }
 
