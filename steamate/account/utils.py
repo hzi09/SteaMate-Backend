@@ -51,13 +51,6 @@ def get_or_create_game(appid):
     
     game_data = data[str(appid)]["data"]  # 실제 게임 데이터 가져오기
 
-    # 출시 날짜 변환 (없으면 None 저장)
-    release_date = game_data.get("release_date", {}).get("date", None)
-    try:
-        released_at = datetime.strptime(release_date, "%Y-%m-%d").date() if release_date else None
-    except ValueError:
-        released_at = None  # 변환 실패 시 None 저장
-
     # 장르 저장 및 연결
     genre_names = []
     if "genres" in game_data:
@@ -70,11 +63,6 @@ def get_or_create_game(appid):
         appid=appid,
         title=game_data.get("name"),
         genre=", ".join([g.genre_name for g in genre_names]),  # 장르 리스트 문자열로 저장
-        released_at=released_at,
-        description=game_data.get("short_description", ""),
-        review_score=game_data.get("metacritic", {}).get("score", 0),
-        header_image=game_data.get("header_image", ""),
-        trailer_url=game_data.get("movies", [{}])[0].get("webm", {}).get("480", "") if "movies" in game_data else ""
     )
 
     return game  # 새로 저장된 게임 반환

@@ -55,15 +55,7 @@ class Command(BaseCommand):
                 appid = int(row["appid"])
                 title = row["name"].strip() if row["name"] else "Unknown"
                 genre_names = row["genres"].split(",") if row["genres"] else []
-                released_at = row["release_date"] if row["release_date"] else None
-                description = row["detailed_description"] if row["detailed_description"] else ""
-                review_score = float(row["positive_ratings"]) if row["positive_ratings"] else 0
 
-                # 날짜 변환 (모델의 필드 타입에 맞게 변환)
-                try:
-                    released_at = datetime.strptime(released_at, "%d %b, %Y").date()
-                except (ValueError, TypeError):
-                    released_at = None
                 
                 # 장르 문자열로 만들기
                 genre_str = ", ".join([g.strip() for g in genre_names if g.strip()])
@@ -73,9 +65,6 @@ class Command(BaseCommand):
                     defaults={
                         "title": title,
                         "genre": genre_str,
-                        "released_at": released_at,
-                        "description": description,
-                        "review_score": review_score,
                     }
                 )
 
