@@ -38,8 +38,8 @@ async def get_chatbot_message(user_input, session_id, genre, game, appid, prefer
     all_contexts = []
     
     # 검색 파라미터 설정
-    # retriever = vector_store.as_retriever(search_kwargs={"k": 8, "filter": {"appid": {"$nin": appid}}})
-    retriever = vector_store.as_retriever(search_kwargs={"k": 8})
+    retriever = vector_store.as_retriever(search_kwargs={"k": 8, "filter": {"appid": {"$nin": appid}}})
+    # retriever = vector_store.as_retriever(search_kwargs={"k": 8})
     
     # Search based on sub-queries
     for sub_query in sub_queries:

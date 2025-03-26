@@ -46,10 +46,10 @@ def delete_messages_from_history(session_id, user_message):
         return False
     
 # 세션 내역 가져오기
-def get_session_history(session_ids):
-    if session_ids not in store:
-        store[session_ids] = ChatMessageHistory()
-    return store[session_ids]
+def get_session_history(session_id):
+    if session_id not in store:
+        store[session_id] = ChatMessageHistory()
+    return store[session_id]
 
 def delete_session_history(session_id):
     if session_id in store:
