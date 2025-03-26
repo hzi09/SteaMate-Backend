@@ -128,7 +128,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             if serializer.is_valid(raise_exception=True):
                 # 새로운 챗봇 응답 생성 및 스트리밍
                 aggregated_response = ""
-                async for chunk in get_chatbot_message(new_message, self.session_id, self.genre, self.game, self.appid):
+                async for chunk in get_chatbot_message(new_message, self.session_id, self.genre, self.game, self.appid, self.preferred_games):
                     aggregated_response += chunk
                     await self.send(text_data=json.dumps({
                         'response': aggregated_response,
