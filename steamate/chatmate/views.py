@@ -3,12 +3,11 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 
+from django.shortcuts import get_object_or_404
+
 from .models import ChatSession, ChatMessage
 from .serializers import ChatSessionSerializer, ChatMessageSerializer
-
-from .utils_v5 import bring_session_history, delete_messages_from_history, get_chatbot_message
-
-from django.shortcuts import get_object_or_404
+from .history import bring_session_history, delete_messages_from_history
 
 # Create your views here.
 class ChatSessionAPIView(APIView):
