@@ -71,7 +71,7 @@ jobs:
           ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "\
             cd /home/ubuntu/SteaMate-Backend && \
             git reset --hard HEAD && \
-            git clean -fd && \
+            git clean -fd -e steamate/pickmate/models/ -e steamate/pickmate/models/* && \
             git pull origin main && \
             docker compose -f docker-compose.yaml down && \
             docker image prune -af && \
