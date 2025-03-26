@@ -44,7 +44,7 @@ def get_combined_similar_games(user_id, top_n=10, limit_per_game=10):
     for game_id in top_games:
         query = """
         SELECT cmetadata->>'appid' AS appid, embedding <=> (
-            SELECT embedding FROM langchain_pg_embedding WHERE cmetadata->>'appid' = %s
+            SELECT embedding FROM langchain_pg_embedding WHERE cmetadata->>'appid' = %s LIMIT 1
         ) AS similarity
         FROM langchain_pg_embedding
         ORDER BY similarity
