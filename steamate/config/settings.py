@@ -15,10 +15,15 @@ from dotenv import load_dotenv
 import os
 from datetime import timedelta
 from django.core.exceptions import ImproperlyConfigured
+from celery.schedules import crontab
 
 load_dotenv()
 
+# API 키 환경변수에서 가져오기
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 
+# PostgreSQL 연결 문자열 (환경 변수에서 가져오거나 직접 설정)
+CONNECTION_STRING = os.getenv('DATABASE_URL')  # 예: "postgresql://user:password@localhost:5432/dbname"
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -192,6 +197,17 @@ CELERY_BROKER_URL = 'redis://redis:6379/0'
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 
+CELERY_BEAT_SCHEDULE = {
+    'delete-expired-users-every-10-minutes': {
+        'task': 'account.tasks.delete_expired_unverified_users',
+        'schedule': crontab(minute='*/10'),
+    },
+    'train-collaborative-filtering-every-day': {
+        'task': 'pickmate.tasks.train_collaborative_filtering',
+        'schedule': crontab(minute=0, hour=0),
+    }
+}
+
 # Password validation
 # https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators
 
@@ -216,7 +232,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Asia/Seoul'
 
 USE_I18N = True
 
