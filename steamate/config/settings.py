@@ -15,6 +15,7 @@ from dotenv import load_dotenv
 import os
 from datetime import timedelta
 from django.core.exceptions import ImproperlyConfigured
+from celery.schedules import crontab
 
 load_dotenv()
 
@@ -191,6 +192,13 @@ AUTH_USER_MODEL = "account.User"
 CELERY_BROKER_URL = 'redis://redis:6379/0'
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
+
+CELERY_BEAT_SCHEDULE = {
+    'delete-expired-users-every-10-minutes': {
+        'task': 'account.tasks.delete_expired_unverified_users',
+        'schedule': crontab(minute='*/10'),
+    },
+}
 
 # Password validation
 # https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators
