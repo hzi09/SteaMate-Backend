@@ -21,6 +21,9 @@ load_dotenv()
 # API 키 환경변수에서 가져오기
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 
+# Tavily API 키 환경변수에서 가져오기
+TAVILY_API_KEY = os.getenv('TAVILY_API_KEY')
+
 # PostgreSQL 연결 문자열 (환경 변수에서 가져오거나 직접 설정)
 CONNECTION_STRING = os.getenv('DATABASE_URL')  # 예: "postgresql://user:password@localhost:5432/dbname"
 
@@ -272,3 +275,7 @@ EMAIL_USE_TLS = True
 EMAIL_USE_SSL = False  # TLS를 사용할 경우 False로 설정
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER  # 기본 발신 이메일 주소
 
+LOGGING = {
+    "version": 1,  # the dictConfig format version
+    "disable_existing_loggers": False,  # retain the default loggers
+}
