@@ -2,7 +2,8 @@ from django.shortcuts import render, redirect
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework import status
-from .models import User, UserPreferredGame, Game, Genre, UserPreferredGenre, UserLibraryGame
+from .models import (User, UserPreferredGame, Game, Genre, UserPreferredGenre, UserLibraryGame,
+                     UserPreferredTag, Tag, GameTag)
 from .serializers import (CreateUserSerializer, UserUpdateSerializer,
                           SteamSignupSerializer, CustomTokenObtainPairSerializer)
 from rest_framework.permissions import AllowAny, IsAuthenticated, IsAdminUser
@@ -382,6 +383,7 @@ class MyPageAPIView(APIView):
                 "profileurl":user.steam_profile_url
             }
         
+        data["preferred_tag"] = [tag.tag.name for tag in user.preferred_tags.all()]
         data["preferred_genre"] = [genre.genre.genre_name for genre in user.preferred_genres.all()]
         data["preferred_game"] = [game.game.title for game in user.preferred_games.all()]
         data["library_games"] = [{"title":lib.game.title, "playtime":lib.playtime} for lib in user.library_games.all()]
@@ -415,6 +417,7 @@ class MyPageAPIView(APIView):
         # 기존 선호 게임/장르 제거
         UserPreferredGame.objects.filter(user=user).delete()
         UserPreferredGenre.objects.filter(user=user).delete()
+        UserPreferredTag.objects.filter(user=user).delete()
         
         # 게임 title -> Game 객체 일괄 조회
         games = Game.objects.filter(title__in=preferred_game_titles)
@@ -423,6 +426,7 @@ class MyPageAPIView(APIView):
         # 선호 게임 저장 준비
         preferred_game_objs = []
         genre_name_set = set()
+        tag_name_set = set()
         
         for title in preferred_game_titles:
             game = game_dict.get(title)
@@ -433,22 +437,36 @@ class MyPageAPIView(APIView):
             # 장르 문자열 -> 리스트
             genre_names = [g.strip() for g in game.genre.split(",") if g.strip()]
             genre_name_set.update(genre_names)
+            
+            # 선호 태그 저장
+            tag_names = [tag.tag.name for tag in game.tags.all()]
+            tag_name_set.update(tag_names)
+            
         
         preferred_genre_objs = []
         for genre_name in genre_name_set:
             genre, _ = Genre.objects.get_or_create(genre_name=genre_name)
             preferred_genre_objs.append(UserPreferredGenre(user=user, genre=genre))
         
+        
+        preferred_tag_objs = []
+        for tag_name in tag_name_set:
+            tag, _ = Tag.objects.get_or_create(name=tag_name)
+            preferred_tag_objs.append(UserPreferredTag(user=user, tag=tag))
+        
         # bulk 저장
         if preferred_game_objs:
             UserPreferredGame.objects.bulk_create(preferred_game_objs)
         if preferred_genre_objs:
             UserPreferredGenre.objects.bulk_create(preferred_genre_objs)
+        if preferred_tag_objs:
+            UserPreferredTag.objects.bulk_create(preferred_tag_objs)
         
         return Response({
             "message": "선호 게임/장르 수정 완료",
                 "preferred_games": preferred_game_titles,
-                "preferred_genres": list(genre_name_set)
+                "preferred_genres": list(genre_name_set),
+                "preferred_tags": list(tag_name_set)
             }, status=status.HTTP_200_OK)
     
     def delete(self, request, pk):
