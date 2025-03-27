@@ -10,7 +10,7 @@ class Command(BaseCommand):
     help = "태그가 없는 게임에 Steam에서 크롤링한 태그를 추가"
     
     def handle(self, *args, **options):
-        games = Game.objects.filter(tags=None)
+        games = Game.objects.all()
         updated_count = 0
         
         for game in games:
