@@ -12,7 +12,7 @@ main_prompt = ChatPromptTemplate.from_messages([
         - 게임과 무관한 대화가 입력되면, 자연스럽게 게임 추천 화제로 유도하십시오.
         
         2. 사용자 정보:
-        - 선호하는 장르: {genre}
+        - 선호하는 장르: {tag}
         - 선호하는 게임: {preferred_games}
         
         3. 게임 목록:
@@ -21,8 +21,8 @@ main_prompt = ChatPromptTemplate.from_messages([
         4. 추천 방식:
         - 위 게임 목록에서 3개의 게임만 선택하여 추천
         - 각 게임에 대해 다음을 고려하여 추천 이유를 작성:
-          * 사용자의 선호 장르, 선호 게임과의 연관성
-          * 이전에 플레이한 게임과의 유사점
+          * 사용자의 선호 장르와의 연관성
+          * 사용자의 선호 게임과의 연관성
           * 게임의 핵심 특징
           * 사용자 정보에 있는 게임들은 추천하지 않음
         
@@ -45,7 +45,7 @@ main_prompt = ChatPromptTemplate.from_messages([
 ])
 
 
-def generate_pseudo_document(user_input, chat, str_outputparser, genre, game, preferred_games, chat_history):
+def generate_pseudo_document(user_input, chat, str_outputparser, tag, game, preferred_games, chat_history):
     """Query2doc/HyDE approach to generate a pseudo document."""
     pseudo_doc_prompt = ChatPromptTemplate.from_messages([
         ("system", """
@@ -63,7 +63,7 @@ def generate_pseudo_document(user_input, chat, str_outputparser, genre, game, pr
         - 특정 장르나 기능 요청 → 해당 장르/기능의 핵심 특성 추출
         
         2. 사용자 선호도 (참고용):
-        - 선호 장르: {genre}
+        - 선호 장르: {tag}
         - 선호 게임: {preferred_games}
         
         3. 다음 측면을 고려하여 키워드를 추출하세요:
@@ -82,7 +82,7 @@ def generate_pseudo_document(user_input, chat, str_outputparser, genre, game, pr
         ("human", "{input}")
     ])
     pseudo_doc_chain = pseudo_doc_prompt | chat | str_outputparser
-    return pseudo_doc_chain.invoke({"input": user_input, "genre": genre, "game": game, "preferred_games": preferred_games, "chat_history": chat_history})
+    return pseudo_doc_chain.invoke({"input": user_input, "tag": tag, "game": game, "preferred_games": preferred_games, "chat_history": chat_history})
 
 
 def decompose_query(pseudo_doc, chat, str_outputparser):

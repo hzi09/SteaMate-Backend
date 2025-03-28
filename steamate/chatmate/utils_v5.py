@@ -97,7 +97,7 @@ agent_with_history = RunnableWithMessageHistory(
 )
 
 
-async def get_chatbot_message(user_input, session_id, genre, game, appid, preferred_games):
+async def get_chatbot_message(user_input, session_id, tag, game, appid, preferred_games):
     # 1. Get chat history
     chat_history = get_session_history(session_id)
     
@@ -123,7 +123,7 @@ async def get_chatbot_message(user_input, session_id, genre, game, appid, prefer
             yield chunk
     else:
         # 5. 스트리밍 응답 생성 및 yield# 2. Generate pseudo document
-        pseudo_doc = generate_pseudo_document(user_input, chat, str_outputparser, genre, game, preferred_games, chat_history)
+        pseudo_doc = generate_pseudo_document(user_input, chat, str_outputparser, tag, game, preferred_games, chat_history)
         # 3. Decompose the generated pseudo document into sub-queries
         sub_queries = decompose_query(pseudo_doc, chat, str_outputparser)
         # 4. Perform search for each sub-query
@@ -148,7 +148,7 @@ async def get_chatbot_message(user_input, session_id, genre, game, appid, prefer
             {
                 "input": user_input,
                 "context": context,
-                "genre": ", ".join(genre),
+                "tag": ", ".join(tag),
                 "game": ", ".join(game),
                 "preferred_games": ", ".join(preferred_games),
             },

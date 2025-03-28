@@ -23,7 +23,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         self.user = self.scope['user']
         
         # 사용자 정보 가져오기
-        self.genre = await database_sync_to_async(lambda: [genres.genre.genre_name for genres in self.user.preferred_genres.all()])()
+        self.tags = await database_sync_to_async(lambda: [tags.tag.name for tags in self.user.preferred_tags.all()])()
         library_games = await database_sync_to_async(lambda: self.user.library_games.all())()
         self.appid = await database_sync_to_async(lambda: [games.game.appid for games in library_games])()
         self.game = await database_sync_to_async(lambda: [games.game.title + ' (' + '플레이 시간: ' + str(games.playtime) + '분)' + ' ('+ 'appid: ' + str(games.game.appid) + ')' for games in library_games.order_by('-playtime')])()
@@ -76,7 +76,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 if serializer.is_valid(raise_exception=True):
                     # 스트리밍 응답 처리
                     aggregated_response = ""
-                    async for chunk in get_chatbot_message(user_message, self.session_id, self.genre, self.game, self.appid, self.preferred_games):
+                    async for chunk in get_chatbot_message(user_message, self.session_id, self.tags, self.game, self.appid, self.preferred_games):
                         aggregated_response += chunk
                         # 각 청크마다 스트리밍 응답 전송
                         await self.send(text_data=json.dumps({
@@ -128,7 +128,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             if serializer.is_valid(raise_exception=True):
                 # 새로운 챗봇 응답 생성 및 스트리밍
                 aggregated_response = ""
-                async for chunk in get_chatbot_message(new_message, self.session_id, self.genre, self.game, self.appid, self.preferred_games):
+                async for chunk in get_chatbot_message(new_message, self.session_id, self.tags, self.game, self.appid, self.preferred_games):
                     aggregated_response += chunk
                     await self.send(text_data=json.dumps({
                         'response': aggregated_response,
