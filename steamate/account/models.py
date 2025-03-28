@@ -14,13 +14,6 @@ class Game(models.Model):
     appid = models.IntegerField(primary_key=True)
     title = models.CharField(max_length=255)
     genre = models.CharField(max_length=255)
-    released_at = models.DateField(blank=True, null=True)
-    description = models.TextField(blank = True)
-    review_score = models.FloatField(default = 0, blank = True)
-    comment = models.TextField(blank = True)
-    header_image = models.URLField(blank = True)
-    trailer_url = models.URLField(blank = True)
-    
 
 class User(AbstractUser):
     
@@ -46,6 +39,7 @@ class User(AbstractUser):
     steam_name = models.CharField(max_length=50, blank=True, null=True)
     steam_profile_url = models.URLField(blank=True, null=True)
     steam_avatar = models.URLField(blank=True, null=True)
+    is_syncing = models.BooleanField(default=False)
     
     def __str__(self):
         return self.username
@@ -100,3 +94,30 @@ class UserPreferredGenre(models.Model):
 
     def __str__(self):
         return f"{self.user.username} - {self.genre.genre_name}"
+
+
+class Tag(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+
+    def __str__(self):
+        return self.name
+
+class GameTag(models.Model):
+    game = models.ForeignKey(Game, on_delete=models.CASCADE, related_name='tags')
+    tag = models.ForeignKey(Tag, on_delete=models.CASCADE)
+    
+    class Meta:
+        unique_together = ('game', 'tag')
+    
+    def __str__(self):
+        return f"{self.game.title} - {self.tag.name}"
+
+class UserPreferredTag(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='preferred_tags')
+    tag = models.ForeignKey(Tag, on_delete=models.CASCADE)
+    
+    class Meta:
+        unique_together = ('user', 'tag')
+    
+    def __str__(self):
+        return f"{self.user.username} - {self.tag.name}"

@@ -1,6 +1,7 @@
 from django.db import connection
 import pandas as pd
 import random
+import re
 
 def get_top_played_games(user_id, limit=10):
     """
@@ -43,7 +44,7 @@ def get_combined_similar_games(user_id, top_n=10, limit_per_game=10):
     for game_id in top_games:
         query = """
         SELECT cmetadata->>'appid' AS appid, embedding <=> (
-            SELECT embedding FROM langchain_pg_embedding WHERE cmetadata->>'appid' = %s
+            SELECT embedding FROM langchain_pg_embedding WHERE cmetadata->>'appid' = %s LIMIT 1
         ) AS similarity
         FROM langchain_pg_embedding
         ORDER BY similarity
@@ -95,3 +96,44 @@ def get_user_game_data(user_id=None):
     data["similarity"] = data["playtime"] / data["playtime"].max() if data["playtime"].max() else 0
 
     return data
+
+def extract_game_details(document):
+    """
+    document 컬럼에서 게임의 name, genres, description을 추출하는 함수
+    """
+    name_match = re.search(r'name:\s(.*?)\s\|', document)
+    genres_match = re.search(r'genres:\s(.*?)\s\|', document)
+    description_match = re.search(r'description:\s(.*?)(?:\s\||$)', document)
+
+    name = name_match.group(1) if name_match else None
+    genres = genres_match.group(1) if genres_match else None
+    description = description_match.group(1) if description_match else None
+
+    return name, genres, description
+
+def get_game_details(appid_list):
+    """
+    특정 게임 ID(appid) 리스트에 해당하는 게임의 이름, 장르, 설명을 가져옴.
+    """
+    if not appid_list:
+        return {}
+
+    # '%s' 대신 개별 값으로 IN 절에 바인딩 (PostgreSQL에서 JSONB 비교)
+    placeholders = ', '.join(['%s'] * len(appid_list))  # "%s, %s, %s" 형태로 변환
+    query = f"""
+        SELECT cmetadata->>'appid' AS appid, document
+        FROM langchain_pg_embedding
+        WHERE cmetadata->>'appid' IN ({placeholders});
+    """
+
+    with connection.cursor() as cursor:
+        cursor.execute(query, appid_list)  # 리스트를 개별 값으로 바인딩
+        rows = cursor.fetchall()
+
+    game_details = {}
+    for row in rows:
+        appid, document = row
+        name, genres, description = extract_game_details(document)
+        game_details[appid] = {"name": name, "genres": genres, "description": description}
+
+    return game_details

@@ -53,6 +53,22 @@ services:
       - redis
     networks:
       - steamate-network
+  
+  celery-beat:
+    build:
+      context: ./steamate
+      dockerfile: Dockerfile.wsgi
+    command: ["celery", "-A", "config", "beat", "--loglevel=info"]
+    volumes:
+      - ./steamate:/app
+    working_dir: /app
+    env_file:
+      - .env
+    depends_on:
+      - steamate
+      - redis
+    networks:
+      - steamate-network
 
   nginx:
     build:
