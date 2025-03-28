@@ -26,7 +26,7 @@
 - [1. 프로젝트 개요](#1-프로젝트-개요)
 - [2. 서비스 설명](#2-서비스-설명)
 - [3. 주요 기능](#3-주요-기능)
-- [4. ](#)
+- [4. 기여 가이드라인](#4-기여-가이드-라인)
 
 ## 1. 프로젝트 개요
 ### 아이디어 및 배경
@@ -461,7 +461,7 @@
 
 <br>
 
-## 4. 기여 가이드 라인
+## 4. 기여 가이드라인
 - [GitHub Rules](https://github.com/hzi09/SteaMate-Backend/wiki/GitHub-Rules)
 - [Code Convention](https://github.com/hzi09/SteaMate-Backend/wiki/Code-Convention)
 - [Project Convention](https://github.com/hzi09/SteaMate-Backend/wiki/Project-Convention)
