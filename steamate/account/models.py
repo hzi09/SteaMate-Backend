@@ -14,7 +14,6 @@ class Game(models.Model):
     appid = models.IntegerField(primary_key=True)
     title = models.CharField(max_length=255)
     genre = models.CharField(max_length=255)
-    
 
 class User(AbstractUser):
     
@@ -95,3 +94,30 @@ class UserPreferredGenre(models.Model):
 
     def __str__(self):
         return f"{self.user.username} - {self.genre.genre_name}"
+
+
+class Tag(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+
+    def __str__(self):
+        return self.name
+
+class GameTag(models.Model):
+    game = models.ForeignKey(Game, on_delete=models.CASCADE, related_name='tags')
+    tag = models.ForeignKey(Tag, on_delete=models.CASCADE)
+    
+    class Meta:
+        unique_together = ('game', 'tag')
+    
+    def __str__(self):
+        return f"{self.game.title} - {self.tag.name}"
+
+class UserPreferredTag(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='preferred_tags')
+    tag = models.ForeignKey(Tag, on_delete=models.CASCADE)
+    
+    class Meta:
+        unique_together = ('user', 'tag')
+    
+    def __str__(self):
+        return f"{self.user.username} - {self.tag.name}"

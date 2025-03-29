@@ -13,8 +13,12 @@ embeddings = OpenAIEmbeddings(
 
 # 데이터 불러오기
 def load_and_chunk_csv(chunk_size=100):
-    file_path = os.path.abspath('chatmate/data/games_v3.csv')
-    data = pd.read_csv(file_path, encoding="utf-8")
+    try:
+        file_path = os.path.abspath('chatmate/data/games_v3.csv')
+        data = pd.read_csv(file_path, encoding="utf-8")
+    except Exception as e:
+        print(f"데이터 불러오기 중 오류 :: {e}")
+        return None
     
     chunks = []
     for i in range(0, len(data), chunk_size):

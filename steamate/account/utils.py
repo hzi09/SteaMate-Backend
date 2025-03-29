@@ -1,5 +1,5 @@
 import requests
-from .models import User, Genre, Game, UserPreferredGame
+from .models import User, Genre, Game, UserPreferredGame, Tag, GameTag
 import os
 from dotenv import load_dotenv
 from datetime import datetime
@@ -8,11 +8,33 @@ from rest_framework.response import Response
 from django.db.utils import IntegrityError
 from rest_framework import status
 from django.db import transaction
+from bs4 import BeautifulSoup
 
 load_dotenv()
 STEAM_API_KEY = os.getenv('STEAM_API_KEY')
 logger = logging.getLogger(__name__)
 
+def get_steam_tags(appid):
+    """
+    Steam 스토어 페이지에서 태그 정보를 크롤링하여 리스트로 반환
+    """
+    url = f"https://store.steampowered.com/app/{appid}/"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.5993.90 Safari/537.36"
+    }
+
+    try:
+        response = requests.get(url, headers=headers, timeout=5)
+        response.raise_for_status()
+    except requests.RequestException as e:
+        logger.warning(f"[태그 크롤링 실패] appid={appid}, error={e}")
+        return []
+
+    soup = BeautifulSoup(response.text, "lxml")
+    tag_elements = soup.select(".glance_tags.popular_tags a")
+
+    tags = [tag.get_text(strip=True) for tag in tag_elements]
+    return tags
 
 
 def get_or_create_genre(genre_name):
@@ -64,6 +86,12 @@ def get_or_create_game(appid):
         title=game_data.get("name"),
         genre=", ".join([g.genre_name for g in genre_names]),  # 장르 리스트 문자열로 저장
     )
+    
+    # 태그 크롤링 및 저장
+    tag_list = get_steam_tags(appid)
+    for tag in tag_list:
+        tag_obj, _ = Tag.objects.get_or_create(name=tag)
+        GameTag.objects.get_or_create(game=game, tag=tag_obj)
 
     return game  # 새로 저장된 게임 반환
 
