@@ -19,4 +19,4 @@ WORKDIR /app
 
 ENV PYTHONPATH=/steamate 
 
-CMD ["sh", "-c", "python manage.py migrate && python mange.py load_data && python manage.py update_missing_tag && gunicorn config.wsgi:application --bind 0.0.0.0:8000"]
+CMD ["sh", "-c", "python manage.py migrate && python manage.py load_data && python manage.py update_missing_tag && gunicorn config.wsgi:application --bind 0.0.0.0:8000"]
