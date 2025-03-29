@@ -176,6 +176,9 @@ agent_prompt = ChatPromptTemplate.from_messages([
 
 game_info_agent_prompt = hub.pull("hwchase17/openai-functions-agent").partial(
     system_message="""당신은 스팀 게임 전문가입니다. 사용자가 특정 게임의 상세정보나, 여러게임의 비교를 입력하면 게임의 정보를 제공해야 합니다.
+    
+        대화 내역:
+        {chat_history}
         
         1. 검색 결과 처리 방법:
         

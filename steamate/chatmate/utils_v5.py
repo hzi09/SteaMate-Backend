@@ -32,13 +32,13 @@ choice_chat = ChatOpenAI(
         "type": "function",
         "function": {
             "name": "search_game_info",
-            "description": "게임 정보 검색이 필요할 때 호출되는 함수입니다",
+            "description": "게임 정보 검색이 필요할 때 호출되는 함수입니다. 특정 게임의 공략, 비교, 캐릭터, 스토리 등 게임 자체에 대한 질문에만 사용하세요.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "needs_search": {
                         "type": "boolean",
-                        "description": "게임 정보 검색이 필요한지 여부"
+                        "description": "게임 정보 검색이 필요한지 여부. 특정 게임의 공략, 비교, 캐릭터, 스토리 등 게임 자체에 대한 질문에만 True로 설정하세요."
                     }
                 },
                 "required": ["needs_search"]
@@ -109,7 +109,9 @@ async def get_chatbot_message(user_input, session_id, tag, game, appid, preferre
         
         context = retriever.invoke(user_input) 
         
-        agent_response = agent_executor.invoke({"input": user_input})
+        chat_history_message = chat_history.messages
+        
+        agent_response = agent_executor.invoke({"input": user_input, "chat_history": chat_history_message})
         
         
         async for chunk in agent_with_history.astream(
