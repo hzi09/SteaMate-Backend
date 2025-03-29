@@ -17,7 +17,7 @@ COPY . /app
 
 # 설치
 RUN pip install --upgrade pip
-RUN pip install -r steamate/requirements.txt
+RUN pip install --no-cache-dir -r steamate/requirements.txt
 
 # WebSocket 포함 uvicorn 실행
 CMD ["uvicorn", "steamate.config.asgi:application", "--host", "0.0.0.0", "--port", "8001"]
